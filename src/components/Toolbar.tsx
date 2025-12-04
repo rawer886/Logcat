@@ -1,17 +1,19 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   Smartphone,
-  RefreshCw,
   Sun,
   Moon,
   Settings,
-  Play,
-  Square,
   ChevronDown,
+  Search,
+  X,
+  CaseSensitive,
+  Regex,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import { useLogStream } from "../hooks/useLogStream";
+import { useFilter } from "../hooks/useFilter";
 import { SettingsPanel } from "./SettingsPanel";
 import type { Device } from "../types";
 
@@ -21,14 +23,18 @@ export function Toolbar() {
     devices,
     selectedDevice,
     isConnected,
-    isLoading,
     startLogcat,
     stopLogcat,
-    refreshDevices,
   } = useLogStream();
+  const {
+    filter,
+    setSearchText,
+    toggleRegex,
+    toggleCaseSensitive,
+  } = useFilter();
 
-  const [isDeviceMenuOpen, setIsDeviceMenuOpen] = React.useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleDeviceSelect = async (device: Device) => {
     setIsDeviceMenuOpen(false);
@@ -38,13 +44,16 @@ export function Toolbar() {
     await startLogcat(device.id);
   };
 
-  const handleToggleConnection = async () => {
-    if (isConnected && selectedDevice) {
-      await stopLogcat();
-    } else if (selectedDevice) {
-      await startLogcat(selectedDevice.id);
-    }
-  };
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchText(e.target.value);
+    },
+    [setSearchText]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setSearchText("");
+  }, [setSearchText]);
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-surface-secondary border-b border-border transition-theme">
@@ -56,11 +65,14 @@ export function Toolbar() {
             "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium",
             "bg-surface hover:bg-surface-elevated border border-border",
             "transition-colors duration-150",
-            "min-w-[200px] justify-between"
+            "min-w-[180px] justify-between"
           )}
         >
           <div className="flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-text-secondary" />
+            <Smartphone className={cn(
+              "w-4 h-4",
+              isConnected ? "text-log-info" : "text-text-secondary"
+            )} />
             <span className="text-text-primary truncate">
               {selectedDevice?.name || "选择设备"}
             </span>
@@ -125,45 +137,63 @@ export function Toolbar() {
         )}
       </div>
 
-      {/* Refresh Devices */}
-      <button
-        onClick={refreshDevices}
-        disabled={isLoading}
-        className={cn(
-          "p-2 rounded-md hover:bg-surface-elevated transition-colors",
-          "text-text-secondary hover:text-text-primary",
-          isLoading && "animate-spin"
-        )}
-        title="刷新设备列表"
-      >
-        <RefreshCw className="w-4 h-4" />
-      </button>
+      {/* Search Input */}
+      <div className="relative flex-1 max-w-xl">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+        <input
+          type="text"
+          value={filter.searchText}
+          onChange={handleSearchChange}
+          placeholder="搜索日志..."
+          className={cn(
+            "w-full pl-9 pr-24 py-1.5 rounded-md text-sm",
+            "bg-surface border border-border",
+            "text-text-primary placeholder:text-text-muted",
+            "focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent",
+            "transition-colors duration-150"
+          )}
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {/* Case Sensitive Toggle */}
+          <button
+            onClick={toggleCaseSensitive}
+            className={cn(
+              "p-1 rounded transition-colors",
+              filter.isCaseSensitive
+                ? "bg-accent text-white"
+                : "text-text-muted hover:text-text-secondary hover:bg-surface-elevated"
+            )}
+            title="区分大小写"
+          >
+            <CaseSensitive className="w-4 h-4" />
+          </button>
 
-      {/* Connect/Disconnect Button */}
-      <button
-        onClick={handleToggleConnection}
-        disabled={!selectedDevice}
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium",
-          "transition-colors duration-150",
-          isConnected
-            ? "bg-log-error/20 text-log-error hover:bg-log-error/30"
-            : "bg-log-info/20 text-log-info hover:bg-log-info/30",
-          !selectedDevice && "opacity-50 cursor-not-allowed"
-        )}
-      >
-        {isConnected ? (
-          <>
-            <Square className="w-4 h-4" />
-            <span>停止</span>
-          </>
-        ) : (
-          <>
-            <Play className="w-4 h-4" />
-            <span>开始</span>
-          </>
-        )}
-      </button>
+          {/* Regex Toggle */}
+          <button
+            onClick={toggleRegex}
+            className={cn(
+              "p-1 rounded transition-colors",
+              filter.isRegex
+                ? "bg-accent text-white"
+                : "text-text-muted hover:text-text-secondary hover:bg-surface-elevated"
+            )}
+            title="正则表达式"
+          >
+            <Regex className="w-4 h-4" />
+          </button>
+
+          {/* Clear Search */}
+          {filter.searchText && (
+            <button
+              onClick={handleClearSearch}
+              className="p-1 rounded text-text-muted hover:text-text-secondary hover:bg-surface-elevated transition-colors"
+              title="清除搜索"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Spacer */}
       <div className="flex-1" />
@@ -204,4 +234,3 @@ export function Toolbar() {
     </div>
   );
 }
-

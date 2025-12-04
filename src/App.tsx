@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Toolbar } from "./components/Toolbar";
-import { FilterBar } from "./components/FilterBar";
 import { LogList } from "./components/LogList";
 import { StatusBar } from "./components/StatusBar";
 import { useLogStore } from "./stores/logStore";
@@ -19,11 +18,8 @@ function App() {
 
   return (
     <div className="h-full flex flex-col bg-surface transition-theme">
-      {/* Top Toolbar */}
+      {/* Top Toolbar with Filter */}
       <Toolbar />
-
-      {/* Filter Bar */}
-      <FilterBar />
 
       {/* Main Content - Log List */}
       <LogList />

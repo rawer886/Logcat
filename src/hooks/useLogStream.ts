@@ -85,8 +85,9 @@ export function useLogStream(): UseLogStreamReturn {
         await invoke("start_logcat", { deviceId });
         setConnected(true);
 
-        // Update selected device
-        const device = devices.find((d) => d.id === deviceId);
+        // Update selected device - get fresh device list from store
+        const currentDevices = useLogStore.getState().devices;
+        const device = currentDevices.find((d) => d.id === deviceId);
         if (device) {
           selectDevice(device);
         }
@@ -99,7 +100,7 @@ export function useLogStream(): UseLogStreamReturn {
         throw error;
       }
     },
-    [devices, addLogs, setConnected, selectDevice, refreshProcesses]
+    [addLogs, setConnected, selectDevice, refreshProcesses]
   );
 
   // Stop logcat
@@ -130,6 +131,29 @@ export function useLogStream(): UseLogStreamReturn {
     },
     [clearLogs]
   );
+
+  // Track if we've auto-connected
+  const hasAutoConnectedRef = useRef(false);
+
+  // Auto-select first device when devices are loaded
+  useEffect(() => {
+    if (
+      !hasAutoConnectedRef.current &&
+      !isConnected &&
+      !selectedDevice &&
+      devices.length > 0
+    ) {
+      // Find first available device (state === "device")
+      const availableDevice = devices.find((d) => d.state === "device");
+      if (availableDevice) {
+        hasAutoConnectedRef.current = true;
+        startLogcat(availableDevice.id).catch((error) => {
+          console.error("Auto-connect failed:", error);
+          hasAutoConnectedRef.current = false;
+        });
+      }
+    }
+  }, [devices, isConnected, selectedDevice, startLogcat]);
 
   // Initial device refresh
   useEffect(() => {
