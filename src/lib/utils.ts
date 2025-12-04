@@ -583,3 +583,272 @@ export function downloadAsFile(content: string, filename: string, mimeType: stri
   URL.revokeObjectURL(url);
 }
 
+// ============================================
+// Import/Export utilities for Android Studio .logcat format
+// ============================================
+
+import type { 
+  LogEntry, 
+  LogLevel, 
+  Device,
+  AndroidStudioLogcatFile, 
+  AndroidStudioLogMessage 
+} from "../types";
+
+// Map Android Studio log levels to our format
+const AS_LEVEL_MAP: Record<string, LogLevel> = {
+  "VERBOSE": "V",
+  "DEBUG": "D",
+  "INFO": "I",
+  "WARN": "W",
+  "ERROR": "E",
+  "ASSERT": "A",
+};
+
+// Map our log levels to Android Studio format
+const LEVEL_TO_AS_MAP: Record<LogLevel, "VERBOSE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "ASSERT"> = {
+  "V": "VERBOSE",
+  "D": "DEBUG",
+  "I": "INFO",
+  "W": "WARN",
+  "E": "ERROR",
+  "A": "ASSERT",
+};
+
+// Convert Android Studio timestamp to our format
+function asTimestampToString(timestamp: { seconds: number; nanos: number }): string {
+  const ms = Math.floor(timestamp.nanos / 1000000);
+  const date = new Date(timestamp.seconds * 1000 + ms);
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const seconds = date.getSeconds().toString().padStart(2, "0");
+  const milliseconds = ms.toString().padStart(3, "0");
+  return `${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
+// Convert Android Studio log message to our LogEntry format
+function asMessageToLogEntry(msg: AndroidStudioLogMessage, index: number): LogEntry {
+  const timestamp = asTimestampToString(msg.header.timestamp);
+  const epochMs = msg.header.timestamp.seconds * 1000 + Math.floor(msg.header.timestamp.nanos / 1000000);
+  
+  return {
+    id: index,
+    timestamp,
+    dateTime: new Date(epochMs).toISOString(),
+    epoch: epochMs,
+    pid: msg.header.pid,
+    tid: msg.header.tid,
+    level: AS_LEVEL_MAP[msg.header.logLevel] || "D",
+    tag: msg.header.tag,
+    message: msg.message,
+    packageName: msg.header.applicationId,
+    processName: msg.header.processName,
+  };
+}
+
+// Convert our LogEntry to Android Studio log message format
+function logEntryToASMessage(entry: LogEntry): AndroidStudioLogMessage {
+  // Parse timestamp to get seconds and nanos
+  let seconds = 0;
+  let nanos = 0;
+  
+  if (entry.epoch) {
+    seconds = Math.floor(entry.epoch / 1000);
+    nanos = (entry.epoch % 1000) * 1000000;
+  } else if (entry.timestamp) {
+    // Try to parse from timestamp string (HH:mm:ss.SSS)
+    const now = new Date();
+    const parts = entry.timestamp.split(/[:.]/);
+    if (parts.length >= 3) {
+      now.setHours(parseInt(parts[0], 10) || 0);
+      now.setMinutes(parseInt(parts[1], 10) || 0);
+      now.setSeconds(parseInt(parts[2], 10) || 0);
+      const ms = parseInt(parts[3], 10) || 0;
+      seconds = Math.floor(now.getTime() / 1000);
+      nanos = ms * 1000000;
+    }
+  }
+
+  return {
+    header: {
+      logLevel: LEVEL_TO_AS_MAP[entry.level] || "DEBUG",
+      pid: entry.pid,
+      tid: entry.tid,
+      applicationId: entry.packageName || "",
+      processName: entry.processName || "",
+      tag: entry.tag,
+      timestamp: { seconds, nanos },
+    },
+    message: entry.message,
+  };
+}
+
+// Import logs from Android Studio .logcat JSON format
+export function importFromAndroidStudioFormat(jsonContent: string): { 
+  logs: LogEntry[]; 
+  device?: Partial<Device>;
+  filter?: string;
+} {
+  try {
+    const data: AndroidStudioLogcatFile = JSON.parse(jsonContent);
+    
+    const logs = data.logcatMessages.map((msg, index) => 
+      asMessageToLogEntry(msg, index)
+    );
+    
+    // Extract device info if available
+    let device: Partial<Device> | undefined;
+    if (data.metadata?.device?.physicalDevice) {
+      const pd = data.metadata.device.physicalDevice;
+      device = {
+        id: pd.serialNumber,
+        name: `${pd.manufacturer} ${pd.model}`,
+        model: pd.model,
+        state: pd.isOnline ? "device" : "offline",
+        isEmulator: false,
+      };
+    }
+    
+    return { logs, device, filter: data.metadata?.filter };
+  } catch (error) {
+    console.error("Failed to parse Android Studio logcat file:", error);
+    throw new Error("Invalid Android Studio .logcat file format");
+  }
+}
+
+// Export logs to Android Studio .logcat JSON format
+export function exportToAndroidStudioFormat(
+  logs: LogEntry[],
+  device?: Device | null,
+  filter: string = "",
+  projectAppIds: string[] = []
+): string {
+  const data: AndroidStudioLogcatFile = {
+    metadata: {
+      device: device ? {
+        physicalDevice: {
+          serialNumber: device.id,
+          isOnline: device.state === "device",
+          release: "",
+          apiLevel: { majorVersion: 0, minorVersion: 0 },
+          featureLevel: 0,
+          manufacturer: device.name.split(" ")[0] || "",
+          model: device.model,
+          type: "HANDHELD",
+        },
+      } : undefined,
+      filter,
+      projectApplicationIds: projectAppIds,
+    },
+    logcatMessages: logs.map(logEntryToASMessage),
+  };
+  
+  return JSON.stringify(data, null, 2);
+}
+
+// Try to parse plain text log format
+// Format: HH:mm:ss.SSS PID TAG PROCESS LEVEL MESSAGE
+export function tryParseTextLogFormat(content: string): LogEntry[] | null {
+  const lines = content.trim().split("\n");
+  if (lines.length === 0) return null;
+  
+  const logs: LogEntry[] = [];
+  let id = 0;
+  
+  // Common text log patterns
+  // Pattern 1: "16:38:27.552 1868  GreezeManager              system_server               D  message"
+  const pattern1 = /^(\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\S+)\s+(\S+)\s+([VDIWEA])\s+(.*)$/;
+  
+  // Pattern 2: "12-04 16:38:27.552  1868  2092 D GreezeManager: message"
+  const pattern2 = /^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEA])\s+(\S+):\s*(.*)$/;
+  
+  // Pattern 3: Standard logcat format "D/Tag(PID): message"
+  const pattern3 = /^([VDIWEA])\/(\S+)\(\s*(\d+)\):\s*(.*)$/;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    let match: RegExpMatchArray | null;
+    
+    // Try pattern 1
+    match = trimmed.match(pattern1);
+    if (match) {
+      logs.push({
+        id: id++,
+        timestamp: match[1],
+        pid: parseInt(match[2], 10),
+        tid: parseInt(match[2], 10), // TID not available, use PID
+        level: match[5] as LogLevel,
+        tag: match[3],
+        message: match[6],
+        processName: match[4],
+      });
+      continue;
+    }
+    
+    // Try pattern 2
+    match = trimmed.match(pattern2);
+    if (match) {
+      logs.push({
+        id: id++,
+        timestamp: match[1].split(" ")[1] || match[1],
+        pid: parseInt(match[2], 10),
+        tid: parseInt(match[3], 10),
+        level: match[4] as LogLevel,
+        tag: match[5],
+        message: match[6],
+      });
+      continue;
+    }
+    
+    // Try pattern 3
+    match = trimmed.match(pattern3);
+    if (match) {
+      logs.push({
+        id: id++,
+        timestamp: new Date().toTimeString().slice(0, 12),
+        pid: parseInt(match[3], 10),
+        tid: parseInt(match[3], 10),
+        level: match[1] as LogLevel,
+        tag: match[2],
+        message: match[4],
+      });
+      continue;
+    }
+  }
+  
+  // If we parsed at least 50% of non-empty lines, consider it successful
+  const nonEmptyLines = lines.filter(l => l.trim()).length;
+  if (logs.length >= nonEmptyLines * 0.5) {
+    return logs;
+  }
+  
+  return null;
+}
+
+// Import logs from file content (auto-detect format)
+export function importLogs(content: string, filename: string): {
+  logs: LogEntry[];
+  device?: Partial<Device>;
+  format: "logcat" | "text" | "unknown";
+} {
+  // Try Android Studio .logcat JSON format first
+  if (filename.endsWith(".logcat") || content.trim().startsWith("{")) {
+    try {
+      const result = importFromAndroidStudioFormat(content);
+      return { ...result, format: "logcat" };
+    } catch {
+      // Not a valid JSON, try text format
+    }
+  }
+  
+  // Try plain text format
+  const textLogs = tryParseTextLogFormat(content);
+  if (textLogs && textLogs.length > 0) {
+    return { logs: textLogs, format: "text" };
+  }
+  
+  return { logs: [], format: "unknown" };
+}
+

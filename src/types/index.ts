@@ -98,7 +98,44 @@ export interface LogStats {
 }
 
 // Export format options
-export type ExportFormat = "txt" | "json" | "csv";
+export type ExportFormat = "txt" | "json" | "csv" | "logcat";
+
+// Android Studio .logcat file format
+export interface AndroidStudioLogcatFile {
+  metadata: {
+    device?: {
+      physicalDevice?: {
+        serialNumber: string;
+        isOnline: boolean;
+        release: string;
+        apiLevel: { majorVersion: number; minorVersion: number };
+        featureLevel: number;
+        manufacturer: string;
+        model: string;
+        type: string;
+      };
+    };
+    filter: string;
+    projectApplicationIds: string[];
+  };
+  logcatMessages: AndroidStudioLogMessage[];
+}
+
+export interface AndroidStudioLogMessage {
+  header: {
+    logLevel: "VERBOSE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "ASSERT";
+    pid: number;
+    tid: number;
+    applicationId: string;
+    processName: string;
+    tag: string;
+    timestamp: {
+      seconds: number;
+      nanos: number;
+    };
+  };
+  message: string;
+}
 
 // IPC Events from Rust backend
 export interface LogEvent {

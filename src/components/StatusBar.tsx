@@ -1,18 +1,18 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   Pause,
   Play,
   Trash2,
   ArrowDown,
   Download,
+  Upload,
   Circle,
   WrapText,
 } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn, downloadAsFile, importLogs, exportToAndroidStudioFormat } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import { useLogStream } from "../hooks/useLogStream";
-import { LOG_LEVEL_INFO, type LogLevel, type ExportFormat } from "../types";
-import { downloadAsFile } from "../lib/utils";
+import { LOG_LEVEL_INFO, type LogLevel } from "../types";
 
 export function StatusBar() {
   const {
@@ -21,16 +21,18 @@ export function StatusBar() {
     autoScroll,
     isConnected,
     filteredLogs,
+    filter,
     settings,
     togglePause,
     setAutoScroll,
     clearLogs,
     updateSettings,
+    importLogs: importLogsToStore,
   } = useLogStore();
 
-  const { selectedDevice, clearDeviceLogs } = useLogStream();
+  const { selectedDevice, clearDeviceLogs, stopLogcat } = useLogStream();
 
-  const [showExportMenu, setShowExportMenu] = React.useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClear = async () => {
     if (selectedDevice) {
@@ -40,44 +42,53 @@ export function StatusBar() {
     }
   };
 
-  const handleExport = (format: ExportFormat) => {
-    setShowExportMenu(false);
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `logcat-${timestamp}`;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    let content: string;
-    let mimeType: string;
-    let extension: string;
+    try {
+      // Stop current logcat if running
+      if (isConnected) {
+        await stopLogcat();
+      }
 
-    switch (format) {
-      case "json":
-        content = JSON.stringify(filteredLogs, null, 2);
-        mimeType = "application/json";
-        extension = "json";
-        break;
-      case "csv":
-        const headers = "时间,PID,TID,级别,TAG,消息";
-        const rows = filteredLogs.map(
-          (log) =>
-            `"${log.timestamp}",${log.pid},${log.tid},"${log.level}","${log.tag.replace(/"/g, '""')}","${log.message.replace(/"/g, '""')}"`
-        );
-        content = [headers, ...rows].join("\n");
-        mimeType = "text/csv";
-        extension = "csv";
-        break;
-      default:
-        content = filteredLogs
-          .map(
-            (log) =>
-              `${log.timestamp} ${log.pid} ${log.tid} ${log.level} ${log.tag}: ${log.message}`
-          )
-          .join("\n");
-        mimeType = "text/plain";
-        extension = "txt";
+      const content = await file.text();
+      const result = importLogs(content, file.name);
+
+      if (result.logs.length === 0) {
+        alert("无法解析日志文件，请检查文件格式是否正确。");
+        return;
+      }
+
+      importLogsToStore(result.logs, file.name);
+      
+      const formatName = result.format === "logcat" ? "Android Studio .logcat" : "文本格式";
+      console.log(`成功导入 ${result.logs.length} 条日志 (${formatName})`);
+    } catch (error) {
+      console.error("导入失败:", error);
+      alert("导入失败，请检查文件格式。");
     }
 
-    downloadAsFile(content, `${filename}.${extension}`, mimeType);
+    // Reset file input
+    e.target.value = "";
+  };
+
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const deviceName = selectedDevice?.name?.replace(/\s+/g, "-") || "Unknown";
+    const filename = `${deviceName}_${timestamp}.logcat`;
+
+    const content = exportToAndroidStudioFormat(
+      filteredLogs,
+      selectedDevice,
+      filter.searchText
+    );
+
+    downloadAsFile(content, filename, "application/json");
   };
 
   return (
@@ -194,51 +205,37 @@ export function StatusBar() {
           <span>清空</span>
         </button>
 
-        {/* Export */}
-        <div className="relative">
-          <button
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            disabled={filteredLogs.length === 0}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded transition-colors",
-              "hover:bg-surface-elevated text-text-secondary hover:text-text-primary",
-              filteredLogs.length === 0 && "opacity-50 cursor-not-allowed"
-            )}
-            title="导出日志"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>导出</span>
-          </button>
+        {/* Import */}
+        <button
+          onClick={handleImport}
+          className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-surface-elevated text-text-secondary hover:text-text-primary transition-colors"
+          title="导入日志"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          <span>导入</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".logcat,.txt,.log,.json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
 
-          {showExportMenu && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowExportMenu(false)}
-              />
-              <div className="absolute bottom-full right-0 mb-1 bg-surface-elevated border border-border rounded-md shadow-lg z-20 py-1 animate-fade-in min-w-[120px]">
-                <button
-                  onClick={() => handleExport("txt")}
-                  className="w-full px-3 py-1.5 text-left hover:bg-accent/10 transition-colors"
-                >
-                  导出为 TXT
-                </button>
-                <button
-                  onClick={() => handleExport("json")}
-                  className="w-full px-3 py-1.5 text-left hover:bg-accent/10 transition-colors"
-                >
-                  导出为 JSON
-                </button>
-                <button
-                  onClick={() => handleExport("csv")}
-                  className="w-full px-3 py-1.5 text-left hover:bg-accent/10 transition-colors"
-                >
-                  导出为 CSV
-                </button>
-              </div>
-            </>
+        {/* Export */}
+        <button
+          onClick={handleExport}
+          disabled={filteredLogs.length === 0}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-1 rounded transition-colors",
+            "hover:bg-surface-elevated text-text-secondary hover:text-text-primary",
+            filteredLogs.length === 0 && "opacity-50 cursor-not-allowed"
           )}
-        </div>
+          title="导出日志 (.logcat)"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>导出</span>
+        </button>
       </div>
     </div>
   );

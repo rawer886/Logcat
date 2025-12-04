@@ -9,6 +9,7 @@ import {
   Filter,
   Star,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
@@ -53,6 +54,7 @@ export function Toolbar() {
     addFilterHistory,
     toggleFilterFavorite,
     deleteFilterHistory,
+    importedFileName,
   } = useLogStore();
   const {
     devices,
@@ -226,7 +228,7 @@ export function Toolbar() {
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-surface-secondary border-b border-border transition-theme">
-      {/* Device Selector */}
+      {/* Device/File Selector */}
       <div className="relative">
         <button
           onClick={() => setIsDeviceMenuOpen(!isDeviceMenuOpen)}
@@ -237,18 +239,24 @@ export function Toolbar() {
             "min-w-[180px] justify-between"
           )}
         >
-          <div className="flex items-center gap-2">
-            <Smartphone className={cn(
-              "w-4 h-4",
-              isConnected ? "text-log-info" : "text-text-secondary"
-            )} />
+          <div className="flex items-center gap-2 min-w-0">
+            {importedFileName ? (
+              // Show file icon when viewing imported file
+              <FileText className="w-4 h-4 text-accent flex-shrink-0" />
+            ) : (
+              // Show device icon
+              <Smartphone className={cn(
+                "w-4 h-4 flex-shrink-0",
+                isConnected ? "text-log-info" : "text-text-secondary"
+              )} />
+            )}
             <span className="text-text-primary truncate">
-              {selectedDevice?.name || "选择设备"}
+              {importedFileName || selectedDevice?.name || "选择设备"}
             </span>
           </div>
           <ChevronDown
             className={cn(
-              "w-4 h-4 text-text-muted transition-transform duration-200",
+              "w-4 h-4 text-text-muted transition-transform duration-200 flex-shrink-0",
               isDeviceMenuOpen && "transform rotate-180"
             )}
           />

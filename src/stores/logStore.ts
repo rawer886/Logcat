@@ -26,6 +26,9 @@ interface LogState {
   devices: Device[];
   selectedDevice: Device | null;
   
+  // Imported file
+  importedFileName: string | null;
+  
   // Processes
   processes: ProcessInfo[];
   selectedProcess: ProcessInfo | null;
@@ -51,6 +54,8 @@ interface LogState {
   addLog: (entry: LogEntry) => void;
   addLogs: (entries: LogEntry[]) => void;
   clearLogs: () => void;
+  importLogs: (entries: LogEntry[], fileName?: string) => void;
+  clearImportedFile: () => void;
   
   // Actions - Devices
   setDevices: (devices: Device[]) => void;
@@ -146,6 +151,7 @@ export const useLogStore = create<LogState>()(
     filteredLogs: [],
     devices: [],
     selectedDevice: null,
+    importedFileName: null,
     processes: [],
     selectedProcess: null,
     filter: DEFAULT_FILTER,
@@ -217,11 +223,33 @@ export const useLogStore = create<LogState>()(
       });
     },
     
+    importLogs: (entries, fileName) => {
+      const { filter } = get();
+      const newFilteredLogs = filterLogs(entries, filter);
+      const newStats = calculateStats(entries, newFilteredLogs);
+      
+      set({
+        logs: entries,
+        filteredLogs: newFilteredLogs,
+        stats: newStats,
+        isPaused: true, // Pause when importing logs
+        importedFileName: fileName || null,
+        selectedDevice: null, // Clear device when importing file
+      });
+    },
+    
+    clearImportedFile: () => {
+      set({ importedFileName: null });
+    },
+    
     // Actions - Devices
     setDevices: (devices) => set({ devices }),
     
     selectDevice: (device) => {
-      set({ selectedDevice: device });
+      set({ 
+        selectedDevice: device,
+        importedFileName: null, // Clear imported file when selecting device
+      });
       // Clear logs when switching devices
       get().clearLogs();
     },
