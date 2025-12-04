@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
+use tokio::time::{interval, Duration};
 use log::{debug, info};
 
 use crate::parser::{LogEntry, LogParser};
@@ -207,13 +210,64 @@ impl AdbManager {
         processes
     }
 
-    /// Start logcat streaming
+    /// Start logcat streaming with process info enrichment
     pub async fn start_logcat(
         &self,
         device_id: &str,
         sender: mpsc::Sender<LogEntry>,
     ) -> Result<tokio::process::Child, String> {
         info!("Starting logcat for device: {}", device_id);
+
+        // Create process cache
+        let process_cache: Arc<RwLock<HashMap<u32, (String, Option<String>)>>> = 
+            Arc::new(RwLock::new(HashMap::new()));
+
+        // Initial process list fetch
+        if let Ok(processes) = self.get_processes(device_id).await {
+            let mut cache = process_cache.write().await;
+            for proc in processes {
+                cache.insert(proc.pid, (proc.name.clone(), proc.package_name.clone()));
+            }
+            info!("Loaded {} processes into cache", cache.len());
+        }
+
+        // Spawn task to periodically refresh process list
+        let adb_path = self.adb_path.clone();
+        let device_id_clone = device_id.to_string();
+        let cache_clone = process_cache.clone();
+        tokio::spawn(async move {
+            let mut refresh_interval = interval(Duration::from_secs(5));
+            loop {
+                refresh_interval.tick().await;
+                
+                let output = Command::new(&adb_path)
+                    .args(["-s", &device_id_clone, "shell", "ps", "-A", "-o", "PID,NAME"])
+                    .output()
+                    .await;
+
+                if let Ok(output) = output {
+                    if output.status.success() {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let mut cache = cache_clone.write().await;
+                        
+                        for line in stdout.lines().skip(1) {
+                            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+                            if parts.len() >= 2 {
+                                if let Ok(pid) = parts[0].parse::<u32>() {
+                                    let name = parts[1..].join(" ");
+                                    let package_name = if name.contains('.') {
+                                        Some(name.clone())
+                                    } else {
+                                        None
+                                    };
+                                    cache.insert(pid, (name, package_name));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
         let mut child = Command::new(&self.adb_path)
             .args(["-s", device_id, "logcat", "-v", "threadtime"])
@@ -226,11 +280,20 @@ impl AdbManager {
         let reader = BufReader::new(stdout);
         let mut lines = reader.lines();
         let mut parser = LogParser::new();
+        let cache_for_reader = process_cache.clone();
 
         // Spawn task to read logcat output
         tokio::spawn(async move {
             while let Ok(Some(line)) = lines.next_line().await {
-                if let Some(entry) = parser.parse_line(&line) {
+                if let Some(mut entry) = parser.parse_line(&line) {
+                    // Enrich with process info from cache
+                    let cache = cache_for_reader.read().await;
+                    if let Some((process_name, package_name)) = cache.get(&entry.pid) {
+                        entry.process_name = Some(process_name.clone());
+                        entry.package_name = package_name.clone();
+                    }
+                    drop(cache);
+                    
                     if sender.send(entry).await.is_err() {
                         debug!("Logcat receiver dropped, stopping");
                         break;
