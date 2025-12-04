@@ -15,12 +15,22 @@ interface ColumnWidths {
 }
 
 const DEFAULT_WIDTHS: ColumnWidths = {
-  timestamp: 120,
-  pid: 80,
+  timestamp: 130,
+  pid: 90,
   packageName: 180,
   processName: 120,
-  level: 50,
+  level: 60,
   tag: 150,
+};
+
+// Minimum widths to ensure column headers don't wrap
+const MIN_WIDTHS: ColumnWidths = {
+  timestamp: 100, // "DATE/TIME" or "TIMESTAMP"
+  pid: 80,        // "PID-TID"
+  packageName: 90, // "PACKAGE"
+  processName: 85, // "PROCESS"
+  level: 60,      // "LEVEL"
+  tag: 55,        // "TAG"
 };
 
 // Resizable column header component
@@ -363,9 +373,9 @@ export function LogList() {
               <ResizableHeader
                 width={columnWidths.timestamp}
                 onResize={(delta) => handleColumnResize("timestamp", delta)}
-                minWidth={80}
+                minWidth={MIN_WIDTHS.timestamp}
               >
-                <div className="px-2 py-2 text-text-secondary">
+                <div className="px-2 py-2 text-text-secondary whitespace-nowrap overflow-hidden">
                   {settings.timestampFormat === "datetime" ? "DATE/TIME" : 
                    settings.timestampFormat === "epoch" ? "TIMESTAMP" : "TIME"}
                 </div>
@@ -375,9 +385,9 @@ export function LogList() {
               <ResizableHeader
                 width={columnWidths.pid}
                 onResize={(delta) => handleColumnResize("pid", delta)}
-                minWidth={60}
+                minWidth={MIN_WIDTHS.pid}
               >
-                <div className="px-2 py-2 text-text-secondary text-right">
+                <div className="px-2 py-2 text-text-secondary text-right whitespace-nowrap overflow-hidden">
                   {settings.showTid ? "PID-TID" : "PID"}
                 </div>
               </ResizableHeader>
@@ -386,39 +396,39 @@ export function LogList() {
               <ResizableHeader
                 width={columnWidths.packageName}
                 onResize={(delta) => handleColumnResize("packageName", delta)}
-                minWidth={100}
+                minWidth={MIN_WIDTHS.packageName}
               >
-                <div className="px-2 py-2 text-text-secondary">PACKAGE</div>
+                <div className="px-2 py-2 text-text-secondary whitespace-nowrap overflow-hidden">PACKAGE</div>
               </ResizableHeader>
             )}
             {settings.showProcessName && (
               <ResizableHeader
                 width={columnWidths.processName}
                 onResize={(delta) => handleColumnResize("processName", delta)}
-                minWidth={80}
+                minWidth={MIN_WIDTHS.processName}
               >
-                <div className="px-2 py-2 text-text-secondary">PROCESS</div>
+                <div className="px-2 py-2 text-text-secondary whitespace-nowrap overflow-hidden">PROCESS</div>
               </ResizableHeader>
             )}
             {settings.showLevel && (
               <ResizableHeader
                 width={columnWidths.level}
                 onResize={(delta) => handleColumnResize("level", delta)}
-                minWidth={50}
+                minWidth={MIN_WIDTHS.level}
               >
-                <div className="px-2 py-2 text-text-secondary text-center">LEVEL</div>
+                <div className="px-2 py-2 text-text-secondary text-center whitespace-nowrap overflow-hidden">LEVEL</div>
               </ResizableHeader>
             )}
             {settings.showTag && (
               <ResizableHeader
                 width={columnWidths.tag}
                 onResize={(delta) => handleColumnResize("tag", delta)}
-                minWidth={60}
+                minWidth={MIN_WIDTHS.tag}
               >
-                <div className="px-2 py-2 text-text-secondary">TAG</div>
+                <div className="px-2 py-2 text-text-secondary whitespace-nowrap overflow-hidden">TAG</div>
               </ResizableHeader>
             )}
-            <div className="flex-1 min-w-[200px] px-2 py-2 text-text-secondary">MESSAGE</div>
+            <div className="flex-1 min-w-[200px] px-2 py-2 text-text-secondary whitespace-nowrap">MESSAGE</div>
           </div>
 
           {/* Virtual List Content */}
