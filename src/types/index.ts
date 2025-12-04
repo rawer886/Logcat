@@ -60,6 +60,8 @@ export interface AppSettings {
   showTimestamp: boolean;
   showPid: boolean;
   showTid: boolean;
+  showLevel: boolean;
+  showTag: boolean;
   wrapLines: boolean;
 }
 
@@ -130,6 +132,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showTimestamp: true,
   showPid: true,
   showTid: true,
+  showLevel: true,
+  showTag: true,
   wrapLines: false,
 };
 

@@ -105,6 +105,8 @@ const LogRow = memo(function LogRow({
     showTimestamp: boolean;
     showPid: boolean;
     showTid: boolean;
+    showLevel: boolean;
+    showTag: boolean;
     fontSize: number;
     lineHeight: number;
     wrapLines: boolean;
@@ -183,21 +185,25 @@ const LogRow = memo(function LogRow({
       )}
 
       {/* Level */}
-      <div
-        className="flex-shrink-0 px-2 py-1 text-center font-bold"
-        style={{ color: levelInfo.color, width: columnWidths.level }}
-      >
-        {entry.level}
-      </div>
+      {settings.showLevel && (
+        <div
+          className="flex-shrink-0 px-2 py-1 text-center font-bold"
+          style={{ color: levelInfo.color, width: columnWidths.level }}
+        >
+          {entry.level}
+        </div>
+      )}
 
       {/* Tag */}
-      <div
-        className="flex-shrink-0 px-2 py-1 truncate"
-        style={{ color: levelInfo.color, width: columnWidths.tag }}
-        title={entry.tag}
-      >
-        {entry.tag}
-      </div>
+      {settings.showTag && (
+        <div
+          className="flex-shrink-0 px-2 py-1 truncate"
+          style={{ color: levelInfo.color, width: columnWidths.tag }}
+          title={entry.tag}
+        >
+          {entry.tag}
+        </div>
+      )}
 
       {/* Message */}
       <div 
@@ -275,6 +281,8 @@ export function LogList() {
     showTimestamp: settings.showTimestamp,
     showPid: settings.showPid,
     showTid: settings.showTid,
+    showLevel: settings.showLevel,
+    showTag: settings.showTag,
     fontSize: settings.fontSize,
     lineHeight: settings.lineHeight,
     wrapLines: settings.wrapLines,
@@ -285,8 +293,8 @@ export function LogList() {
     (settings.showTimestamp ? columnWidths.timestamp : 0) +
     (settings.showPid ? columnWidths.pid : 0) +
     (settings.showTid ? columnWidths.tid : 0) +
-    columnWidths.level +
-    columnWidths.tag +
+    (settings.showLevel ? columnWidths.level : 0) +
+    (settings.showTag ? columnWidths.tag : 0) +
     500; // minimum message width
 
   return (
@@ -310,14 +318,14 @@ export function LogList() {
                 onResize={(delta) => handleColumnResize("timestamp", delta)}
                 minWidth={60}
               >
-                <div className="px-2 py-2 text-text-secondary">时间</div>
+                <div className="px-2 py-2 text-text-secondary">TIME</div>
               </ResizableHeader>
             )}
             {settings.showPid && (
               <ResizableHeader
                 width={columnWidths.pid}
                 onResize={(delta) => handleColumnResize("pid", delta)}
-                minWidth={40}
+                minWidth={60}
               >
                 <div className="px-2 py-2 text-text-secondary text-right">PID</div>
               </ResizableHeader>
@@ -326,26 +334,30 @@ export function LogList() {
               <ResizableHeader
                 width={columnWidths.tid}
                 onResize={(delta) => handleColumnResize("tid", delta)}
-                minWidth={40}
+                minWidth={60}
               >
                 <div className="px-2 py-2 text-text-secondary text-right">TID</div>
               </ResizableHeader>
             )}
-            <ResizableHeader
-              width={columnWidths.level}
-              onResize={(delta) => handleColumnResize("level", delta)}
-              minWidth={30}
-            >
-              <div className="px-2 py-2 text-text-secondary text-center">级别</div>
-            </ResizableHeader>
-            <ResizableHeader
-              width={columnWidths.tag}
-              onResize={(delta) => handleColumnResize("tag", delta)}
-              minWidth={60}
-            >
-              <div className="px-2 py-2 text-text-secondary">TAG</div>
-            </ResizableHeader>
-            <div className="flex-1 min-w-[200px] px-2 py-2 text-text-secondary">消息</div>
+            {settings.showLevel && (
+              <ResizableHeader
+                width={columnWidths.level}
+                onResize={(delta) => handleColumnResize("level", delta)}
+                minWidth={60}
+              >
+                <div className="px-2 py-2 text-text-secondary text-center">LEVEL</div>
+              </ResizableHeader>
+            )}
+            {settings.showTag && (
+              <ResizableHeader
+                width={columnWidths.tag}
+                onResize={(delta) => handleColumnResize("tag", delta)}
+                minWidth={60}
+              >
+                <div className="px-2 py-2 text-text-secondary">TAG</div>
+              </ResizableHeader>
+            )}
+            <div className="flex-1 min-w-[200px] px-2 py-2 text-text-secondary">MESSAGE</div>
           </div>
 
           {/* Virtual List Content */}

@@ -134,6 +134,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 className="w-4 h-4 accent-accent cursor-pointer"
               />
             </label>
+
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-text-secondary">显示 LEVEL</span>
+              <input
+                type="checkbox"
+                checked={settings.showLevel}
+                onChange={(e) =>
+                  updateSettings({ showLevel: e.target.checked })
+                }
+                className="w-4 h-4 accent-accent cursor-pointer"
+              />
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-text-secondary">显示 TAG</span>
+              <input
+                type="checkbox"
+                checked={settings.showTag}
+                onChange={(e) =>
+                  updateSettings({ showTag: e.target.checked })
+                }
+                className="w-4 h-4 accent-accent cursor-pointer"
+              />
+            </label>
           </div>
 
           {/* Max Log Lines */}
