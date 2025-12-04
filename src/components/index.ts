@@ -3,4 +3,5 @@ export { FilterBar } from "./FilterBar";
 export { LogList } from "./LogList";
 export { StatusBar } from "./StatusBar";
 export { SettingsPanel } from "./SettingsPanel";
+export { LeftToolbar } from "./LeftToolbar";
 

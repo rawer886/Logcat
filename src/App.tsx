@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { LogList } from "./components/LogList";
 import { StatusBar } from "./components/StatusBar";
+import { LeftToolbar } from "./components/LeftToolbar";
 import { useLogStore } from "./stores/logStore";
 
 function App() {
@@ -21,8 +22,16 @@ function App() {
       {/* Top Toolbar with Filter */}
       <Toolbar />
 
-      {/* Main Content - Log List */}
-      <LogList />
+      {/* Main Content Area */}
+      <div className="flex-1 flex min-h-0">
+        {/* Left Toolbar */}
+        <LeftToolbar />
+
+        {/* Log List */}
+        <div className="flex-1 min-w-0">
+          <LogList />
+        </div>
+      </div>
 
       {/* Bottom Status Bar */}
       <StatusBar />

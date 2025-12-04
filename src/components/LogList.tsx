@@ -328,6 +328,27 @@ export function LogList() {
     prevLogCountRef.current = filteredLogs.length;
   }, [filteredLogs.length, autoScroll, virtualizer]);
 
+  // Handle scroll events from LeftToolbar
+  useEffect(() => {
+    const handleScrollToTop = () => {
+      virtualizer.scrollToIndex(0, { align: "start", behavior: "smooth" });
+    };
+    
+    const handleScrollToBottom = () => {
+      if (filteredLogs.length > 0) {
+        virtualizer.scrollToIndex(filteredLogs.length - 1, { align: "end", behavior: "smooth" });
+      }
+    };
+
+    window.addEventListener("logcat:scrollToTop", handleScrollToTop);
+    window.addEventListener("logcat:scrollToBottom", handleScrollToBottom);
+
+    return () => {
+      window.removeEventListener("logcat:scrollToTop", handleScrollToTop);
+      window.removeEventListener("logcat:scrollToBottom", handleScrollToBottom);
+    };
+  }, [virtualizer, filteredLogs.length]);
+
   // Handle scroll
   const handleScroll = useCallback(() => {
     if (!parentRef.current || !autoScroll) return;
