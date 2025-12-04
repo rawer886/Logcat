@@ -1,0 +1,103 @@
+---
+description: 过滤器系统规则
+globs: ["src/lib/utils.ts", "src/stores/logStore.ts", "src/components/Toolbar.tsx"]
+---
+
+# 过滤器系统规则
+
+## 过滤语法（Android Studio 兼容）
+
+```
+# 基础语法
+key:value        # 包含匹配
+key=:value       # 精确匹配
+key~:pattern     # 正则匹配
+-key:value       # 排除
+
+# 支持的 key
+tag:             # TAG 过滤
+message:         # 消息过滤
+package:         # 包名过滤
+level:           # 级别 (V/D/I/W/E/A)
+age:             # 时间 (30s/5m/1h/2d)
+is:              # 特殊 (crash/stacktrace)
+
+# 组合
+tag:a tag:b      # AND (空格)
+tag:a | tag:b    # OR (|)
+```
+
+## 核心函数
+
+### parseLogcatQuery(query: string): ParsedQuery
+
+解析查询字符串为结构化对象：
+
+```typescript
+const query = parseLogcatQuery("tag:Network -tag:Ads | level:WARN");
+// 返回 ParsedQuery 对象
+```
+
+### matchesQuery(log: LogEntry, query: ParsedQuery): boolean
+
+检查日志是否匹配查询：
+
+```typescript
+const matches = matchesQuery(logEntry, parsedQuery);
+```
+
+## 添加新的过滤器类型
+
+1. **添加语法提示**
+
+```typescript
+// src/lib/utils.ts
+export const FILTER_SUGGESTIONS = [
+  { key: "newkey:", description: "描述" },
+  // ...
+];
+```
+
+2. **更新解析器**
+
+```typescript
+// src/lib/utils.ts - parseLogcatQuery 函数
+if (part.startsWith("newkey:")) {
+  const value = part.slice(7);
+  // 处理逻辑
+}
+```
+
+3. **更新匹配器**
+
+```typescript
+// src/lib/utils.ts - matchesQuery 函数
+if (query.newKeyConditions) {
+  // 匹配逻辑
+}
+```
+
+## 过滤历史管理
+
+```typescript
+// 添加历史
+addFilterHistory(query);
+
+// 收藏/取消收藏
+toggleFilterFavorite(id);
+
+// 删除历史
+deleteFilterHistory(id);
+
+// 规则：
+// - 非收藏最多保存 20 条
+// - 收藏的无上限
+// - 收藏项在列表顶部
+```
+
+## 性能考虑
+
+- 过滤在前端进行（避免 IPC 开销）
+- 使用 `useMemo` 缓存过滤结果
+- 输入时防抖，避免每次按键都过滤
+- 正则表达式预编译

@@ -1,91 +1,147 @@
-# Logcat
+<p align="center">
+  <img src="public/icon.svg" width="80" height="80" alt="Logcat Logo">
+</p>
 
-一个高性能、跨平台的 Android Logcat 日志查看工具。
+<h1 align="center">Logcat</h1>
 
-![Logcat Screenshot](./screenshot.png)
+<p align="center">
+  <strong>高性能、跨平台的 Android Logcat 日志查看工具</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/rawer886/Logcat/releases">
+    <img src="https://img.shields.io/github/v/release/rawer886/Logcat?style=flat-square" alt="Release">
+  </a>
+  <a href="https://github.com/rawer886/Logcat/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/rawer886/Logcat?style=flat-square" alt="License">
+  </a>
+  <a href="https://github.com/rawer886/Logcat/stargazers">
+    <img src="https://img.shields.io/github/stars/rawer886/Logcat?style=flat-square" alt="Stars">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#-特性">特性</a> •
+  <a href="#-安装">安装</a> •
+  <a href="#-使用">使用</a> •
+  <a href="#-文档">文档</a> •
+  <a href="#-贡献">贡献</a>
+</p>
+
+<p align="center">
+  <a href="./README_EN.md">English</a> | 简体中文
+</p>
+
+---
 
 ## ✨ 特性
 
-- 🚀 **高性能** - Rust 后端 + 虚拟滚动，轻松处理百万级日志
-- 🎨 **美观界面** - 现代化 UI 设计，深色/浅色主题
-- 🔍 **强大过滤** - 支持日志级别、TAG、关键词、正则表达式过滤
-- 💾 **过滤器预设** - 保存和快速切换常用过滤器
-- 📱 **多设备支持** - 自动检测连接的 Android 设备和模拟器
-- 📤 **日志导出** - 支持 TXT、JSON、CSV 格式导出
-- ⚡ **轻量级** - 安装包 < 10MB，内存占用低
+🎯 **Android Studio Logcat 的轻量替代品**
 
-## 🖥️ 支持平台
+- 🚀 **极致性能** - Rust 后端 + 虚拟滚动，百万级日志丝滑流畅
+- 🔍 **智能过滤** - 完全兼容 Android Studio 过滤语法，无缝迁移
+- 📦 **轻量便携** - 安装包仅 ~10MB，秒速启动
+- 🎨 **现代界面** - 精心设计的 UI，支持深色/浅色主题
+- 🔄 **无缝导入** - 支持 `.logcat` 格式，与 Android Studio 完美互通
 
-- Windows 10/11
-- macOS 10.15+
-- Linux (Ubuntu, Fedora, etc.)
+## 📸 截图
+
+> 截图待添加
 
 ## 📦 安装
 
-### 从 Release 下载
+### 下载安装包
 
-前往 [Releases](https://github.com/your-repo/logcat/releases) 下载对应平台的安装包。
+前往 [Releases](https://github.com/rawer886/Logcat/releases) 下载对应平台的安装包：
+
+| 平台 | 下载 |
+|------|------|
+| Windows | `Logcat_x.x.x_x64-setup.exe` |
+| macOS | `Logcat_x.x.x_x64.dmg` |
+| Linux | `Logcat_x.x.x_amd64.deb` |
 
 ### 从源码构建
 
-#### 前置要求
-
-- [Node.js](https://nodejs.org/) 18+
-- [Rust](https://rustup.rs/) 1.70+
-- [Android SDK](https://developer.android.com/studio) (需要 adb 命令)
-
-#### 构建步骤
-
 ```bash
-# 克隆仓库
-git clone https://github.com/your-repo/logcat.git
-cd logcat
+# 前置要求: Node.js 18+, Rust 1.70+, adb
 
-# 安装依赖
+git clone https://github.com/rawer886/Logcat.git
+cd Logcat
 npm install
-
-# 开发模式运行
-npm run tauri dev
-
-# 构建生产版本
-npm run tauri build
+npm run tauri dev      # 开发模式
+npm run tauri build    # 构建发布版
 ```
 
-## 🚀 使用方法
+## 🚀 使用
 
-1. 确保已安装 Android SDK 并且 `adb` 命令可用
-2. 连接 Android 设备或启动模拟器
-3. 启动 Logcat 应用
-4. 从设备列表中选择目标设备
-5. 点击"开始"按钮开始捕获日志
+### 快速开始
 
-### 快捷键
+1. 连接 Android 设备或启动模拟器
+2. 打开 Logcat，自动检测并连接设备
+3. 开始查看日志！
 
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl/Cmd + F` | 聚焦搜索框 |
-| `Ctrl/Cmd + K` | 清空日志 |
-| `Ctrl/Cmd + E` | 导出日志 |
-| `Space` | 暂停/恢复 |
+### 过滤语法
 
-## 🛠️ 技术栈
+```bash
+# 基础过滤
+tag:MainActivity          # TAG 包含 "MainActivity"
+tag=:MainActivity         # TAG 精确匹配
+tag~:Main.*               # TAG 正则匹配
 
-- **框架**: [Tauri 2.0](https://tauri.app/)
-- **后端**: Rust
-- **前端**: React 18 + TypeScript
-- **UI**: Tailwind CSS + Radix UI
-- **状态管理**: Zustand
-- **虚拟列表**: @tanstack/react-virtual
+# 组合过滤
+tag:Network message:error # AND - 同时满足
+tag:A | tag:B             # OR  - 满足任一
+-tag:Ads                  # NOT - 排除
 
-## 📄 许可证
+# 更多
+level:WARN                # 级别 >= WARN
+age:5m                    # 最近 5 分钟
+is:crash                  # 崩溃日志
+```
 
-MIT License
+📖 完整语法请参考 [过滤器文档](docs/PRODUCT.md#4-过滤器语法)
+
+## 📚 文档
+
+| 文档 | 说明 |
+|------|------|
+| [📋 产品文档](docs/PRODUCT.md) | 完整功能说明、界面介绍、使用指南 |
+| [🏗️ 架构文档](docs/ARCHITECTURE.md) | 技术架构、模块设计、数据流 |
+| [📖 开发指南](docs/DEVELOPMENT.md) | 代码规范、开发流程、最佳实践 |
+| [📝 更新日志](CHANGELOG.md) | 版本历史、功能变更 |
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+我们欢迎各种形式的贡献！
 
-## 📧 联系
+- 🐛 [报告 Bug](https://github.com/rawer886/Logcat/issues/new?template=bug_report.md)
+- 💡 [功能建议](https://github.com/rawer886/Logcat/issues/new?template=feature_request.md)
+- 📖 完善文档
+- 🔧 提交 PR
 
-如有问题或建议，请提交 Issue。
+请先阅读 [贡献指南](CONTRIBUTING.md)。
 
+## 🛠️ 技术栈
+
+<table>
+  <tr>
+    <td align="center"><strong>Tauri 2.0</strong><br/>跨平台框架</td>
+    <td align="center"><strong>Rust</strong><br/>高性能后端</td>
+    <td align="center"><strong>React 18</strong><br/>现代前端</td>
+    <td align="center"><strong>TypeScript</strong><br/>类型安全</td>
+  </tr>
+</table>
+
+## 📄 许可证
+
+[MIT License](LICENSE) © 2025
+
+---
+
+<p align="center">
+  如果这个项目对你有帮助，请给一个 ⭐️ 支持一下！
+</p>
+
+<p align="center">
+  <sub>Built with <a href="https://cursor.sh/">Cursor</a> AI</sub>
+</p>

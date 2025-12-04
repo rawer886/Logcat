@@ -1,0 +1,82 @@
+---
+description: React 组件开发规则
+globs: ["src/components/**/*.tsx"]
+---
+
+# React 组件开发规则
+
+## 组件结构
+
+按以下顺序组织代码：
+
+```typescript
+// 1. 导入
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useLogStore } from "../stores/logStore";
+import { cn } from "../lib/utils";
+
+// 2. 类型定义
+interface Props {
+  // ...
+}
+
+// 3. 组件定义
+export function ComponentName({ prop1, prop2 }: Props) {
+  // 3.1 Zustand store
+  const { logs, settings, setFilter } = useLogStore();
+  
+  // 3.2 本地 state
+  const [localState, setLocalState] = useState(false);
+  
+  // 3.3 派生状态 (useMemo)
+  const derived = useMemo(() => process(logs), [logs]);
+  
+  // 3.4 回调函数 (useCallback)
+  const handleClick = useCallback(() => {
+    setFilter({ ... });
+  }, [setFilter]);
+  
+  // 3.5 副作用 (useEffect)
+  useEffect(() => { ... }, []);
+  
+  // 3.6 渲染
+  return <div className="...">...</div>;
+}
+```
+
+## 样式规范
+
+- 使用 Tailwind CSS 类名
+- 使用 `cn()` 合并条件类名
+- 不要使用内联 style
+
+```typescript
+// ✅ 正确
+<div className={cn(
+  "flex items-center gap-2",
+  isActive && "bg-accent",
+  disabled && "opacity-50"
+)}>
+
+// ❌ 错误
+<div style={{ display: 'flex' }}>
+```
+
+## 性能优化
+
+- 使用 `React.memo` 避免不必要的重渲染
+- 列表项组件必须使用 memo
+- 大列表必须使用虚拟滚动
+
+```typescript
+const LogRow = memo(function LogRow({ entry }: { entry: LogEntry }) {
+  return <div>...</div>;
+});
+```
+
+## 禁止事项
+
+- ❌ 组件超过 300 行
+- ❌ 在组件内定义组件
+- ❌ 超过 5 层嵌套
+- ❌ 在渲染中创建新对象/函数
