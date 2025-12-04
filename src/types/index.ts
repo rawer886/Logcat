@@ -54,6 +54,7 @@ export interface FilterPreset {
 export interface AppSettings {
   theme: "light" | "dark" | "system";
   fontSize: number;
+  lineHeight: number;
   maxLogLines: number;
   autoScroll: boolean;
   showTimestamp: boolean;
@@ -123,6 +124,7 @@ export const DEFAULT_FILTER: FilterConfig = {
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
   fontSize: 12,
+  lineHeight: 1.5,
   maxLogLines: 100000,
   autoScroll: true,
   showTimestamp: true,

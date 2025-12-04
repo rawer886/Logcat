@@ -106,6 +106,7 @@ const LogRow = memo(function LogRow({
     showPid: boolean;
     showTid: boolean;
     fontSize: number;
+    lineHeight: number;
     wrapLines: boolean;
   };
   columnWidths: ColumnWidths;
@@ -144,7 +145,7 @@ const LogRow = memo(function LogRow({
       style={{
         ...style,
         fontSize: `${settings.fontSize}px`,
-        lineHeight: "1.5",
+        lineHeight: `${settings.lineHeight}`,
       }}
       className={cn(
         "flex items-start font-mono hover:bg-surface-elevated/50 transition-colors",
@@ -206,7 +207,7 @@ const LogRow = memo(function LogRow({
             ? "whitespace-pre-wrap break-all" 
             : "whitespace-pre"
         )}
-        style={{ lineHeight: "1.8" }}
+        style={{ lineHeight: `${settings.lineHeight}` }}
       >
         {searchRegex ? renderHighlightedText(entry.message) : entry.message}
       </div>
@@ -275,6 +276,7 @@ export function LogList() {
     showPid: settings.showPid,
     showTid: settings.showTid,
     fontSize: settings.fontSize,
+    lineHeight: settings.lineHeight,
     wrapLines: settings.wrapLines,
   };
 

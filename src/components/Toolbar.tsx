@@ -12,6 +12,7 @@ import {
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import { useLogStream } from "../hooks/useLogStream";
+import { SettingsPanel } from "./SettingsPanel";
 import type { Device } from "../types";
 
 export function Toolbar() {
@@ -27,6 +28,7 @@ export function Toolbar() {
   } = useLogStream();
 
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = React.useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   const handleDeviceSelect = async (device: Device) => {
     setIsDeviceMenuOpen(false);
@@ -184,6 +186,7 @@ export function Toolbar() {
 
       {/* Settings */}
       <button
+        onClick={() => setIsSettingsOpen(true)}
         className={cn(
           "p-2 rounded-md hover:bg-surface-elevated transition-colors",
           "text-text-secondary hover:text-text-primary"
@@ -192,6 +195,12 @@ export function Toolbar() {
       >
         <Settings className="w-4 h-4" />
       </button>
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }
