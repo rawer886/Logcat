@@ -196,6 +196,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               />
             </label>
 
+            {settings.showPackageName && (
+              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
+                <span className="text-sm text-text-secondary">隐藏重复的包名</span>
+                <input
+                  type="checkbox"
+                  checked={settings.hideRepeatedPackageName}
+                  onChange={(e) =>
+                    updateSettings({ hideRepeatedPackageName: e.target.checked })
+                  }
+                  className="w-4 h-4 accent-accent cursor-pointer"
+                />
+              </label>
+            )}
+
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-sm text-text-secondary">显示进程名</span>
               <input
@@ -207,6 +221,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 className="w-4 h-4 accent-accent cursor-pointer"
               />
             </label>
+
+            {settings.showProcessName && (
+              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
+                <span className="text-sm text-text-secondary">隐藏重复的进程名</span>
+                <input
+                  type="checkbox"
+                  checked={settings.hideRepeatedProcessName}
+                  onChange={(e) =>
+                    updateSettings({ hideRepeatedProcessName: e.target.checked })
+                  }
+                  className="w-4 h-4 accent-accent cursor-pointer"
+                />
+              </label>
+            )}
           </div>
 
           {/* TAG Settings */}
@@ -292,6 +320,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   showTid: false,
                   showPackageName: true,
                   showProcessName: false,
+                  hideRepeatedPackageName: false,
+                  hideRepeatedProcessName: false,
                   showLevel: true,
                   showTag: true,
                   hideRepeatedTags: false,

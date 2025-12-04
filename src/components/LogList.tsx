@@ -135,6 +135,8 @@ const LogRow = memo(function LogRow({
     showTid: boolean;
     showPackageName: boolean;
     showProcessName: boolean;
+    hideRepeatedPackageName: boolean;
+    hideRepeatedProcessName: boolean;
     showLevel: boolean;
     showTag: boolean;
     hideRepeatedTags: boolean;
@@ -146,8 +148,10 @@ const LogRow = memo(function LogRow({
 }) {
   const levelInfo = LOG_LEVEL_INFO[entry.level];
   
-  // Check if TAG is repeated
+  // Check if values are repeated
   const isTagRepeated = settings.hideRepeatedTags && prevEntry && prevEntry.tag === entry.tag;
+  const isPackageNameRepeated = settings.hideRepeatedPackageName && prevEntry && prevEntry.packageName === entry.packageName;
+  const isProcessNameRepeated = settings.hideRepeatedProcessName && prevEntry && prevEntry.processName === entry.processName;
 
   const getRowClassName = (level: LogLevel) => {
     switch (level) {
@@ -223,7 +227,7 @@ const LogRow = memo(function LogRow({
           style={{ width: columnWidths.packageName }}
           title={entry.packageName}
         >
-          {entry.packageName || "-"}
+          {isPackageNameRepeated ? "" : (entry.packageName || "-")}
         </div>
       )}
 
@@ -234,7 +238,7 @@ const LogRow = memo(function LogRow({
           style={{ width: columnWidths.processName }}
           title={entry.processName}
         >
-          {entry.processName || "-"}
+          {isProcessNameRepeated ? "" : (entry.processName || "-")}
         </div>
       )}
 
@@ -336,6 +340,8 @@ export function LogList() {
     showTid: settings.showTid,
     showPackageName: settings.showPackageName,
     showProcessName: settings.showProcessName,
+    hideRepeatedPackageName: settings.hideRepeatedPackageName,
+    hideRepeatedProcessName: settings.hideRepeatedProcessName,
     showLevel: settings.showLevel,
     showTag: settings.showTag,
     hideRepeatedTags: settings.hideRepeatedTags,

@@ -73,6 +73,8 @@ export interface AppSettings {
   // Package/Process name settings
   showPackageName: boolean;
   showProcessName: boolean;
+  hideRepeatedPackageName: boolean;
+  hideRepeatedProcessName: boolean;
   // Other columns
   showLevel: boolean;
   showTag: boolean;
@@ -153,6 +155,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Package/Process name
   showPackageName: true,
   showProcessName: false,
+  hideRepeatedPackageName: false,
+  hideRepeatedProcessName: false,
   // Other columns
   showLevel: true,
   showTag: true,
