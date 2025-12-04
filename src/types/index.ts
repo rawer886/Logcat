@@ -57,6 +57,14 @@ export interface FilterPreset {
   createdAt: number;
 }
 
+// Filter history item
+export interface FilterHistoryItem {
+  id: string;
+  query: string;
+  timestamp: number;
+  isFavorite: boolean;
+}
+
 // Application settings
 export interface AppSettings {
   theme: "light" | "dark" | "system";

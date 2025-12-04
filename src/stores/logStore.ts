@@ -6,6 +6,7 @@ import type {
   ProcessInfo,
   FilterConfig,
   FilterPreset,
+  FilterHistoryItem,
   AppSettings,
   LogStats,
   LogLevel,
@@ -14,7 +15,7 @@ import {
   DEFAULT_FILTER,
   DEFAULT_SETTINGS,
 } from "../types";
-import { createSearchRegex, generateId } from "../lib/utils";
+import { createSearchRegex, generateId, parseLogcatQuery, matchesQuery } from "../lib/utils";
 
 interface LogState {
   // Logs
@@ -32,6 +33,7 @@ interface LogState {
   // Filter
   filter: FilterConfig;
   filterPresets: FilterPreset[];
+  filterHistory: FilterHistoryItem[];
   
   // UI State
   isPaused: boolean;
@@ -65,6 +67,12 @@ interface LogState {
   loadFilterPreset: (id: string) => void;
   deleteFilterPreset: (id: string) => void;
   
+  // Actions - Filter History
+  addFilterHistory: (query: string) => void;
+  toggleFilterFavorite: (id: string) => void;
+  deleteFilterHistory: (id: string) => void;
+  clearFilterHistory: () => void;
+  
   // Actions - UI
   togglePause: () => void;
   setConnected: (connected: boolean) => void;
@@ -78,42 +86,31 @@ interface LogState {
 
 // Filter logs based on current filter configuration
 function filterLogs(logs: LogEntry[], filter: FilterConfig): LogEntry[] {
-  const regex = createSearchRegex(filter.searchText, filter.isRegex, filter.isCaseSensitive);
+  // Parse the search text as Android Studio style query
+  const parsedQuery = parseLogcatQuery(filter.searchText);
+  
+  // Create regex for plain text search if using regex mode
+  const regex = filter.isRegex && parsedQuery.text
+    ? createSearchRegex(parsedQuery.text, true, filter.isCaseSensitive)
+    : null;
   
   return logs.filter((log) => {
-    // Filter by level
-    if (!filter.levels.includes(log.level)) {
+    // Use the parsed query matcher
+    if (!matchesQuery(log, parsedQuery)) {
       return false;
     }
     
-    // Filter by tag
-    if (filter.tags.length > 0) {
-      const matchesTag = filter.tags.some((tag) =>
-        log.tag.toLowerCase().includes(tag.toLowerCase())
-      );
-      if (!matchesTag) {
-        return false;
-      }
-    }
-    
-    // Filter by package name (in tag)
-    if (filter.packageName) {
-      if (!log.tag.toLowerCase().includes(filter.packageName.toLowerCase())) {
-        return false;
-      }
-    }
-    
-    // Filter by PID
-    if (filter.pid !== undefined && log.pid !== filter.pid) {
-      return false;
-    }
-    
-    // Filter by search text
+    // Additional regex matching for regex mode
     if (regex) {
       const searchTarget = `${log.tag} ${log.message}`;
       if (!regex.test(searchTarget)) {
         return false;
       }
+    }
+    
+    // Filter by PID (from process selector, not query)
+    if (filter.pid !== undefined && log.pid !== filter.pid) {
+      return false;
     }
     
     return true;
@@ -153,6 +150,7 @@ export const useLogStore = create<LogState>()(
     selectedProcess: null,
     filter: DEFAULT_FILTER,
     filterPresets: [],
+    filterHistory: [],
     isPaused: false,
     isConnected: false,
     isLoading: false,
@@ -288,6 +286,60 @@ export const useLogStore = create<LogState>()(
     deleteFilterPreset: (id) => {
       const { filterPresets } = get();
       set({ filterPresets: filterPresets.filter((p) => p.id !== id) });
+    },
+    
+    // Actions - Filter History
+    addFilterHistory: (query) => {
+      if (!query.trim()) return;
+      
+      const { filterHistory } = get();
+      
+      // Check if already exists
+      const existing = filterHistory.find((h) => h.query === query);
+      if (existing) {
+        // Update timestamp and move to top (but keep favorite status)
+        const updated = filterHistory.map((h) =>
+          h.id === existing.id ? { ...h, timestamp: Date.now() } : h
+        );
+        set({ filterHistory: updated });
+        return;
+      }
+      
+      // Add new history item
+      const newItem: FilterHistoryItem = {
+        id: generateId(),
+        query,
+        timestamp: Date.now(),
+        isFavorite: false,
+      };
+      
+      // Get favorites and non-favorites
+      const favorites = filterHistory.filter((h) => h.isFavorite);
+      const nonFavorites = filterHistory.filter((h) => !h.isFavorite);
+      
+      // Limit non-favorites to 20
+      const limitedNonFavorites = [newItem, ...nonFavorites].slice(0, 20);
+      
+      set({ filterHistory: [...favorites, ...limitedNonFavorites] });
+    },
+    
+    toggleFilterFavorite: (id) => {
+      const { filterHistory } = get();
+      const updated = filterHistory.map((h) =>
+        h.id === id ? { ...h, isFavorite: !h.isFavorite } : h
+      );
+      set({ filterHistory: updated });
+    },
+    
+    deleteFilterHistory: (id) => {
+      const { filterHistory } = get();
+      set({ filterHistory: filterHistory.filter((h) => h.id !== id) });
+    },
+    
+    clearFilterHistory: () => {
+      const { filterHistory } = get();
+      // Keep only favorites
+      set({ filterHistory: filterHistory.filter((h) => h.isFavorite) });
     },
     
     // Actions - UI
