@@ -1,8 +1,94 @@
-import React, { useRef, useEffect, useCallback, memo } from "react";
+import React, { useRef, useEffect, useCallback, memo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn, highlightMatches, createSearchRegex } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import { LOG_LEVEL_INFO, type LogEntry, type LogLevel } from "../types";
+
+// Column width state
+interface ColumnWidths {
+  timestamp: number;
+  pid: number;
+  tid: number;
+  level: number;
+  tag: number;
+}
+
+const DEFAULT_WIDTHS: ColumnWidths = {
+  timestamp: 100,
+  pid: 60,
+  tid: 60,
+  level: 40,
+  tag: 150,
+};
+
+// Resizable column header component
+const ResizableHeader = ({
+  children,
+  width,
+  onResize,
+  minWidth = 40,
+}: {
+  children: React.ReactNode;
+  width: number;
+  onResize: (delta: number) => void;
+  minWidth?: number;
+}) => {
+  const [isResizing, setIsResizing] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = width;
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - startXRef.current;
+      const newWidth = Math.max(minWidth, startWidthRef.current + delta);
+      onResize(newWidth - width);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, width, onResize, minWidth]);
+
+  return (
+    <div className="relative flex-shrink-0 border-r border-border" style={{ width }}>
+      {children}
+      {/* Visible resize handle */}
+      <div
+        className={cn(
+          "absolute right-0 top-1 bottom-1 w-[3px] cursor-col-resize rounded transition-all",
+          "translate-x-1/2",
+          isResizing 
+            ? "bg-accent w-[4px]" 
+            : isHovering 
+              ? "bg-accent/70" 
+              : "bg-border-strong/50 hover:bg-accent/70"
+        )}
+        onMouseDown={handleMouseDown}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        title="拖动调整列宽"
+      />
+    </div>
+  );
+};
 
 // Memoized log row component
 const LogRow = memo(function LogRow({
@@ -10,6 +96,7 @@ const LogRow = memo(function LogRow({
   searchRegex,
   style,
   settings,
+  columnWidths,
 }: {
   entry: LogEntry;
   searchRegex: RegExp | null;
@@ -20,6 +107,7 @@ const LogRow = memo(function LogRow({
     showTid: boolean;
     fontSize: number;
   };
+  columnWidths: ColumnWidths;
 }) {
   const levelInfo = LOG_LEVEL_INFO[entry.level];
 
@@ -57,43 +145,52 @@ const LogRow = memo(function LogRow({
         fontSize: `${settings.fontSize}px`,
       }}
       className={cn(
-        "flex items-start font-mono border-b border-border/50 hover:bg-surface-elevated/50 transition-colors",
+        "flex items-start font-mono hover:bg-surface-elevated/50 transition-colors",
         getRowClassName(entry.level)
       )}
     >
       {/* Timestamp */}
       {settings.showTimestamp && (
-        <div className="flex-shrink-0 w-[100px] px-2 py-1 text-text-muted truncate">
+        <div 
+          className="flex-shrink-0 px-2 py-1 text-text-muted truncate"
+          style={{ width: columnWidths.timestamp }}
+        >
           {entry.timestamp}
         </div>
       )}
 
       {/* PID */}
       {settings.showPid && (
-        <div className="flex-shrink-0 w-[60px] px-2 py-1 text-text-muted text-right">
+        <div 
+          className="flex-shrink-0 px-2 py-1 text-text-muted text-right"
+          style={{ width: columnWidths.pid }}
+        >
           {entry.pid}
         </div>
       )}
 
       {/* TID */}
       {settings.showTid && (
-        <div className="flex-shrink-0 w-[60px] px-2 py-1 text-text-muted text-right">
+        <div 
+          className="flex-shrink-0 px-2 py-1 text-text-muted text-right"
+          style={{ width: columnWidths.tid }}
+        >
           {entry.tid}
         </div>
       )}
 
       {/* Level */}
       <div
-        className="flex-shrink-0 w-[40px] px-2 py-1 text-center font-bold"
-        style={{ color: levelInfo.color }}
+        className="flex-shrink-0 px-2 py-1 text-center font-bold"
+        style={{ color: levelInfo.color, width: columnWidths.level }}
       >
         {entry.level}
       </div>
 
       {/* Tag */}
       <div
-        className="flex-shrink-0 w-[150px] px-2 py-1 truncate"
-        style={{ color: levelInfo.color }}
+        className="flex-shrink-0 px-2 py-1 truncate"
+        style={{ color: levelInfo.color, width: columnWidths.tag }}
         title={entry.tag}
       >
         {entry.tag}
@@ -111,6 +208,14 @@ export function LogList() {
   const { filteredLogs, autoScroll, settings, filter } = useLogStore();
   const parentRef = useRef<HTMLDivElement>(null);
   const prevLogCountRef = useRef(0);
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
+
+  const handleColumnResize = (column: keyof ColumnWidths, delta: number) => {
+    setColumnWidths((prev) => ({
+      ...prev,
+      [column]: prev[column] + delta,
+    }));
+  };
 
   // Create search regex for highlighting
   const searchRegex = createSearchRegex(
@@ -162,30 +267,50 @@ export function LogList() {
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme">
       {/* Column Headers */}
       <div
-        className="flex items-center font-mono text-xs font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10"
+        className="flex items-center font-mono text-xs font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none"
         style={{ fontSize: `${settings.fontSize}px` }}
       >
         {settings.showTimestamp && (
-          <div className="flex-shrink-0 w-[100px] px-2 py-2 text-text-secondary">
-            时间
-          </div>
+          <ResizableHeader
+            width={columnWidths.timestamp}
+            onResize={(delta) => handleColumnResize("timestamp", delta)}
+            minWidth={60}
+          >
+            <div className="px-2 py-2 text-text-secondary">时间</div>
+          </ResizableHeader>
         )}
         {settings.showPid && (
-          <div className="flex-shrink-0 w-[60px] px-2 py-2 text-text-secondary text-right">
-            PID
-          </div>
+          <ResizableHeader
+            width={columnWidths.pid}
+            onResize={(delta) => handleColumnResize("pid", delta)}
+            minWidth={40}
+          >
+            <div className="px-2 py-2 text-text-secondary text-right">PID</div>
+          </ResizableHeader>
         )}
         {settings.showTid && (
-          <div className="flex-shrink-0 w-[60px] px-2 py-2 text-text-secondary text-right">
-            TID
-          </div>
+          <ResizableHeader
+            width={columnWidths.tid}
+            onResize={(delta) => handleColumnResize("tid", delta)}
+            minWidth={40}
+          >
+            <div className="px-2 py-2 text-text-secondary text-right">TID</div>
+          </ResizableHeader>
         )}
-        <div className="flex-shrink-0 w-[40px] px-2 py-2 text-text-secondary text-center">
-          级别
-        </div>
-        <div className="flex-shrink-0 w-[150px] px-2 py-2 text-text-secondary">
-          TAG
-        </div>
+        <ResizableHeader
+          width={columnWidths.level}
+          onResize={(delta) => handleColumnResize("level", delta)}
+          minWidth={30}
+        >
+          <div className="px-2 py-2 text-text-secondary text-center">级别</div>
+        </ResizableHeader>
+        <ResizableHeader
+          width={columnWidths.tag}
+          onResize={(delta) => handleColumnResize("tag", delta)}
+          minWidth={60}
+        >
+          <div className="px-2 py-2 text-text-secondary">TAG</div>
+        </ResizableHeader>
         <div className="flex-1 px-2 py-2 text-text-secondary">消息</div>
       </div>
 
@@ -219,6 +344,7 @@ export function LogList() {
                   entry={entry}
                   searchRegex={searchRegex}
                   settings={rowSettings}
+                  columnWidths={columnWidths}
                   style={{
                     position: "absolute",
                     top: 0,

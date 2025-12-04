@@ -52,14 +52,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": [
-        {
-          "name": "adb",
-          "cmd": "adb",
-          "args": true
-        }
-      ]
+      "open": true
     }
   }
 }
