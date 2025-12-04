@@ -199,7 +199,7 @@ const LogRow = memo(function LogRow({
       {/* Timestamp */}
       {settings.showTimestamp && (
         <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted truncate"
+          className="flex-shrink-0 px-2 py-1 text-text-muted whitespace-nowrap overflow-hidden text-ellipsis"
           style={{ width: columnWidths.timestamp }}
         >
           {formatTimestamp(entry, settings.timestampFormat)}
@@ -209,7 +209,7 @@ const LogRow = memo(function LogRow({
       {/* PID (with optional TID) */}
       {settings.showPid && (
         <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted text-right"
+          className="flex-shrink-0 px-2 py-1 text-text-muted text-right whitespace-nowrap overflow-hidden"
           style={{ width: columnWidths.pid }}
         >
           {formatPidTid()}
@@ -219,7 +219,7 @@ const LogRow = memo(function LogRow({
       {/* Package Name */}
       {settings.showPackageName && (
         <div 
-          className="flex-shrink-0 px-2 py-1 text-text-secondary truncate"
+          className="flex-shrink-0 px-2 py-1 text-text-secondary whitespace-nowrap overflow-hidden text-ellipsis"
           style={{ width: columnWidths.packageName }}
           title={entry.packageName}
         >
@@ -230,7 +230,7 @@ const LogRow = memo(function LogRow({
       {/* Process Name */}
       {settings.showProcessName && (
         <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted truncate"
+          className="flex-shrink-0 px-2 py-1 text-text-muted whitespace-nowrap overflow-hidden text-ellipsis"
           style={{ width: columnWidths.processName }}
           title={entry.processName}
         >
@@ -241,7 +241,7 @@ const LogRow = memo(function LogRow({
       {/* Level */}
       {settings.showLevel && (
         <div
-          className="flex-shrink-0 px-2 py-1 text-center font-bold"
+          className="flex-shrink-0 px-2 py-1 text-center font-bold whitespace-nowrap overflow-hidden"
           style={{ color: levelInfo.color, width: columnWidths.level }}
         >
           {entry.level}
@@ -251,7 +251,7 @@ const LogRow = memo(function LogRow({
       {/* Tag */}
       {settings.showTag && (
         <div
-          className="flex-shrink-0 px-2 py-1 truncate"
+          className="flex-shrink-0 px-2 py-1 whitespace-nowrap overflow-hidden text-ellipsis"
           style={{ 
             color: isTagRepeated ? "transparent" : levelInfo.color, 
             width: columnWidths.tag 
