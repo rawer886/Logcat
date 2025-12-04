@@ -1,15 +1,22 @@
 // Log level enum matching Android's log levels
 export type LogLevel = "V" | "D" | "I" | "W" | "E" | "A";
 
+// Timestamp format options
+export type TimestampFormat = "datetime" | "time" | "epoch";
+
 // Single log entry structure
 export interface LogEntry {
   id: number;
   timestamp: string;
+  dateTime?: string;  // Full date-time string
+  epoch?: number;     // Unix timestamp
   pid: number;
   tid: number;
   level: LogLevel;
   tag: string;
   message: string;
+  packageName?: string;
+  processName?: string;
   raw?: string;
 }
 
@@ -57,11 +64,19 @@ export interface AppSettings {
   lineHeight: number;
   maxLogLines: number;
   autoScroll: boolean;
+  // Timestamp settings
   showTimestamp: boolean;
+  timestampFormat: TimestampFormat;
+  // Process settings
   showPid: boolean;
-  showTid: boolean;
+  showTid: boolean;  // Show TID in same column as PID
+  // Package/Process name settings
+  showPackageName: boolean;
+  showProcessName: boolean;
+  // Other columns
   showLevel: boolean;
   showTag: boolean;
+  hideRepeatedTags: boolean;  // Hide repeated TAG values
   wrapLines: boolean;
 }
 
@@ -129,11 +144,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lineHeight: 1.5,
   maxLogLines: 100000,
   autoScroll: true,
+  // Timestamp
   showTimestamp: true,
+  timestampFormat: "time",
+  // Process
   showPid: true,
-  showTid: true,
+  showTid: false,  // TID hidden by default
+  // Package/Process name
+  showPackageName: true,
+  showProcessName: false,
+  // Other columns
   showLevel: true,
   showTag: true,
+  hideRepeatedTags: false,
   wrapLines: false,
 };
 

@@ -2,22 +2,24 @@ import React, { useRef, useEffect, useCallback, memo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn, highlightMatches, createSearchRegex } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
-import { LOG_LEVEL_INFO, type LogEntry, type LogLevel } from "../types";
+import { LOG_LEVEL_INFO, type LogEntry, type LogLevel, type TimestampFormat } from "../types";
 
 // Column width state
 interface ColumnWidths {
   timestamp: number;
   pid: number;
-  tid: number;
+  packageName: number;
+  processName: number;
   level: number;
   tag: number;
 }
 
 const DEFAULT_WIDTHS: ColumnWidths = {
-  timestamp: 100,
-  pid: 60,
-  tid: 60,
-  level: 40,
+  timestamp: 120,
+  pid: 80,
+  packageName: 180,
+  processName: 120,
+  level: 50,
   tag: 150,
 };
 
@@ -90,23 +92,42 @@ const ResizableHeader = ({
   );
 };
 
+// Format timestamp based on settings
+const formatTimestamp = (entry: LogEntry, format: TimestampFormat): string => {
+  switch (format) {
+    case "datetime":
+      return entry.dateTime || entry.timestamp;
+    case "epoch":
+      return entry.epoch?.toString() || entry.timestamp;
+    case "time":
+    default:
+      return entry.timestamp;
+  }
+};
+
 // Memoized log row component
 const LogRow = memo(function LogRow({
   entry,
+  prevEntry,
   searchRegex,
   style,
   settings,
   columnWidths,
 }: {
   entry: LogEntry;
+  prevEntry: LogEntry | null;
   searchRegex: RegExp | null;
   style: React.CSSProperties;
   settings: {
     showTimestamp: boolean;
+    timestampFormat: TimestampFormat;
     showPid: boolean;
     showTid: boolean;
+    showPackageName: boolean;
+    showProcessName: boolean;
     showLevel: boolean;
     showTag: boolean;
+    hideRepeatedTags: boolean;
     fontSize: number;
     lineHeight: number;
     wrapLines: boolean;
@@ -114,6 +135,9 @@ const LogRow = memo(function LogRow({
   columnWidths: ColumnWidths;
 }) {
   const levelInfo = LOG_LEVEL_INFO[entry.level];
+  
+  // Check if TAG is repeated
+  const isTagRepeated = settings.hideRepeatedTags && prevEntry && prevEntry.tag === entry.tag;
 
   const getRowClassName = (level: LogLevel) => {
     switch (level) {
@@ -142,6 +166,14 @@ const LogRow = memo(function LogRow({
     );
   };
 
+  // Format PID/TID display
+  const formatPidTid = () => {
+    if (settings.showTid) {
+      return `${entry.pid}-${entry.tid}`;
+    }
+    return entry.pid.toString();
+  };
+
   return (
     <div
       style={{
@@ -160,27 +192,39 @@ const LogRow = memo(function LogRow({
           className="flex-shrink-0 px-2 py-1 text-text-muted truncate"
           style={{ width: columnWidths.timestamp }}
         >
-          {entry.timestamp}
+          {formatTimestamp(entry, settings.timestampFormat)}
         </div>
       )}
 
-      {/* PID */}
+      {/* PID (with optional TID) */}
       {settings.showPid && (
         <div 
           className="flex-shrink-0 px-2 py-1 text-text-muted text-right"
           style={{ width: columnWidths.pid }}
         >
-          {entry.pid}
+          {formatPidTid()}
         </div>
       )}
 
-      {/* TID */}
-      {settings.showTid && (
+      {/* Package Name */}
+      {settings.showPackageName && (
         <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted text-right"
-          style={{ width: columnWidths.tid }}
+          className="flex-shrink-0 px-2 py-1 text-text-secondary truncate"
+          style={{ width: columnWidths.packageName }}
+          title={entry.packageName}
         >
-          {entry.tid}
+          {entry.packageName || "-"}
+        </div>
+      )}
+
+      {/* Process Name */}
+      {settings.showProcessName && (
+        <div 
+          className="flex-shrink-0 px-2 py-1 text-text-muted truncate"
+          style={{ width: columnWidths.processName }}
+          title={entry.processName}
+        >
+          {entry.processName || "-"}
         </div>
       )}
 
@@ -198,10 +242,13 @@ const LogRow = memo(function LogRow({
       {settings.showTag && (
         <div
           className="flex-shrink-0 px-2 py-1 truncate"
-          style={{ color: levelInfo.color, width: columnWidths.tag }}
+          style={{ 
+            color: isTagRepeated ? "transparent" : levelInfo.color, 
+            width: columnWidths.tag 
+          }}
           title={entry.tag}
         >
-          {entry.tag}
+          {isTagRepeated ? "" : entry.tag}
         </div>
       )}
 
@@ -245,10 +292,9 @@ export function LogList() {
   const virtualizer = useVirtualizer({
     count: filteredLogs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => settings.wrapLines ? 60 : 28, // Larger estimate when wrapping
-    overscan: 20, // Number of items to render outside of the visible area
+    estimateSize: () => settings.wrapLines ? 60 : 28,
+    overscan: 20,
     measureElement: (element) => {
-      // Measure actual element height for dynamic sizing
       return element?.getBoundingClientRect().height ?? (settings.wrapLines ? 60 : 28);
     },
   });
@@ -268,21 +314,21 @@ export function LogList() {
     prevLogCountRef.current = filteredLogs.length;
   }, [filteredLogs.length, autoScroll, virtualizer]);
 
-  // Handle scroll to detect manual scrolling
+  // Handle scroll
   const handleScroll = useCallback(() => {
     if (!parentRef.current || !autoScroll) return;
-
-    // Could implement auto-scroll pause here when user scrolls up
-    // const { scrollTop, scrollHeight, clientHeight } = parentRef.current;
-    // const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
   }, [autoScroll]);
 
   const rowSettings = {
     showTimestamp: settings.showTimestamp,
+    timestampFormat: settings.timestampFormat,
     showPid: settings.showPid,
     showTid: settings.showTid,
+    showPackageName: settings.showPackageName,
+    showProcessName: settings.showProcessName,
     showLevel: settings.showLevel,
     showTag: settings.showTag,
+    hideRepeatedTags: settings.hideRepeatedTags,
     fontSize: settings.fontSize,
     lineHeight: settings.lineHeight,
     wrapLines: settings.wrapLines,
@@ -292,10 +338,11 @@ export function LogList() {
   const minContentWidth = 
     (settings.showTimestamp ? columnWidths.timestamp : 0) +
     (settings.showPid ? columnWidths.pid : 0) +
-    (settings.showTid ? columnWidths.tid : 0) +
+    (settings.showPackageName ? columnWidths.packageName : 0) +
+    (settings.showProcessName ? columnWidths.processName : 0) +
     (settings.showLevel ? columnWidths.level : 0) +
     (settings.showTag ? columnWidths.tag : 0) +
-    500; // minimum message width
+    500;
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
@@ -316,9 +363,12 @@ export function LogList() {
               <ResizableHeader
                 width={columnWidths.timestamp}
                 onResize={(delta) => handleColumnResize("timestamp", delta)}
-                minWidth={60}
+                minWidth={80}
               >
-                <div className="px-2 py-2 text-text-secondary">TIME</div>
+                <div className="px-2 py-2 text-text-secondary">
+                  {settings.timestampFormat === "datetime" ? "DATE/TIME" : 
+                   settings.timestampFormat === "epoch" ? "TIMESTAMP" : "TIME"}
+                </div>
               </ResizableHeader>
             )}
             {settings.showPid && (
@@ -327,23 +377,34 @@ export function LogList() {
                 onResize={(delta) => handleColumnResize("pid", delta)}
                 minWidth={60}
               >
-                <div className="px-2 py-2 text-text-secondary text-right">PID</div>
+                <div className="px-2 py-2 text-text-secondary text-right">
+                  {settings.showTid ? "PID-TID" : "PID"}
+                </div>
               </ResizableHeader>
             )}
-            {settings.showTid && (
+            {settings.showPackageName && (
               <ResizableHeader
-                width={columnWidths.tid}
-                onResize={(delta) => handleColumnResize("tid", delta)}
-                minWidth={60}
+                width={columnWidths.packageName}
+                onResize={(delta) => handleColumnResize("packageName", delta)}
+                minWidth={100}
               >
-                <div className="px-2 py-2 text-text-secondary text-right">TID</div>
+                <div className="px-2 py-2 text-text-secondary">PACKAGE</div>
+              </ResizableHeader>
+            )}
+            {settings.showProcessName && (
+              <ResizableHeader
+                width={columnWidths.processName}
+                onResize={(delta) => handleColumnResize("processName", delta)}
+                minWidth={80}
+              >
+                <div className="px-2 py-2 text-text-secondary">PROCESS</div>
               </ResizableHeader>
             )}
             {settings.showLevel && (
               <ResizableHeader
                 width={columnWidths.level}
                 onResize={(delta) => handleColumnResize("level", delta)}
-                minWidth={60}
+                minWidth={50}
               >
                 <div className="px-2 py-2 text-text-secondary text-center">LEVEL</div>
               </ResizableHeader>
@@ -378,6 +439,7 @@ export function LogList() {
             >
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const entry = filteredLogs[virtualRow.index];
+                const prevEntry = virtualRow.index > 0 ? filteredLogs[virtualRow.index - 1] : null;
                 return (
                   <div
                     key={entry.id}
@@ -393,6 +455,7 @@ export function LogList() {
                   >
                     <LogRow
                       entry={entry}
+                      prevEntry={prevEntry}
                       searchRegex={searchRegex}
                       settings={rowSettings}
                       columnWidths={columnWidths}
@@ -408,4 +471,3 @@ export function LogList() {
     </div>
   );
 }
-

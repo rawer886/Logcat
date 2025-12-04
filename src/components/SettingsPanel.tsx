@@ -1,7 +1,8 @@
 import React from "react";
-import { X, Type, AlignJustify, Monitor } from "lucide-react";
+import { X, Type, AlignJustify, Monitor, Clock, Hash, Tag } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
+import type { TimestampFormat } from "../types";
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-80 bg-surface-elevated border-l border-border shadow-xl z-50 animate-slide-in-right">
+      <div className="fixed right-0 top-0 h-full w-96 bg-surface-elevated border-l border-border shadow-xl z-50 animate-slide-in-right">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-lg font-semibold text-text-primary">设置</h2>
@@ -58,10 +59,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 {settings.fontSize}px
               </span>
             </div>
-            <div className="flex justify-between text-xs text-text-muted">
-              <span>10px</span>
-              <span>20px</span>
-            </div>
           </div>
 
           {/* Line Height */}
@@ -86,17 +83,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 {settings.lineHeight.toFixed(1)}
               </span>
             </div>
-            <div className="flex justify-between text-xs text-text-muted">
-              <span>1.2</span>
-              <span>2.5</span>
-            </div>
           </div>
 
-          {/* Display Options */}
+          {/* Timestamp Settings */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-text-primary">
-              <Monitor className="w-4 h-4" />
-              <span className="font-medium">显示选项</span>
+              <Clock className="w-4 h-4" />
+              <span className="font-medium">时间戳</span>
             </div>
 
             <label className="flex items-center justify-between cursor-pointer">
@@ -111,6 +104,52 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               />
             </label>
 
+            {settings.showTimestamp && (
+              <div className="space-y-2 pl-4 border-l-2 border-border">
+                <div className="text-xs text-text-muted">时间格式</div>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { value: "datetime", label: "日期 + 时间", example: "12-04 15:30:45.123" },
+                    { value: "time", label: "仅时间", example: "15:30:45.123" },
+                    { value: "epoch", label: "时间戳", example: "1701678645123" },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={cn(
+                        "flex items-center gap-2 p-2 rounded cursor-pointer transition-colors",
+                        settings.timestampFormat === option.value
+                          ? "bg-accent/20"
+                          : "hover:bg-surface-secondary"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="timestampFormat"
+                        value={option.value}
+                        checked={settings.timestampFormat === option.value}
+                        onChange={(e) =>
+                          updateSettings({ timestampFormat: e.target.value as TimestampFormat })
+                        }
+                        className="accent-accent"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm text-text-primary">{option.label}</div>
+                        <div className="text-xs text-text-muted font-mono">{option.example}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Process ID Settings */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Hash className="w-4 h-4" />
+              <span className="font-medium">进程 ID</span>
+            </div>
+
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-sm text-text-secondary">显示 PID</span>
               <input
@@ -123,29 +162,59 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               />
             </label>
 
+            {settings.showPid && (
+              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
+                <span className="text-sm text-text-secondary">同时显示 TID</span>
+                <input
+                  type="checkbox"
+                  checked={settings.showTid}
+                  onChange={(e) =>
+                    updateSettings({ showTid: e.target.checked })
+                  }
+                  className="w-4 h-4 accent-accent cursor-pointer"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Package/Process Name Settings */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Monitor className="w-4 h-4" />
+              <span className="font-medium">包名 / 进程名</span>
+            </div>
+
             <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm text-text-secondary">显示 TID</span>
+              <span className="text-sm text-text-secondary">显示包名</span>
               <input
                 type="checkbox"
-                checked={settings.showTid}
+                checked={settings.showPackageName}
                 onChange={(e) =>
-                  updateSettings({ showTid: e.target.checked })
+                  updateSettings({ showPackageName: e.target.checked })
                 }
                 className="w-4 h-4 accent-accent cursor-pointer"
               />
             </label>
 
             <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm text-text-secondary">显示 LEVEL</span>
+              <span className="text-sm text-text-secondary">显示进程名</span>
               <input
                 type="checkbox"
-                checked={settings.showLevel}
+                checked={settings.showProcessName}
                 onChange={(e) =>
-                  updateSettings({ showLevel: e.target.checked })
+                  updateSettings({ showProcessName: e.target.checked })
                 }
                 className="w-4 h-4 accent-accent cursor-pointer"
               />
             </label>
+          </div>
+
+          {/* TAG Settings */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Tag className="w-4 h-4" />
+              <span className="font-medium">TAG</span>
+            </div>
 
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-sm text-text-secondary">显示 TAG</span>
@@ -154,6 +223,35 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 checked={settings.showTag}
                 onChange={(e) =>
                   updateSettings({ showTag: e.target.checked })
+                }
+                className="w-4 h-4 accent-accent cursor-pointer"
+              />
+            </label>
+
+            {settings.showTag && (
+              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
+                <span className="text-sm text-text-secondary">隐藏重复的 TAG</span>
+                <input
+                  type="checkbox"
+                  checked={settings.hideRepeatedTags}
+                  onChange={(e) =>
+                    updateSettings({ hideRepeatedTags: e.target.checked })
+                  }
+                  className="w-4 h-4 accent-accent cursor-pointer"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Level Settings */}
+          <div className="space-y-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-text-primary font-medium">显示 LEVEL</span>
+              <input
+                type="checkbox"
+                checked={settings.showLevel}
+                onChange={(e) =>
+                  updateSettings({ showLevel: e.target.checked })
                 }
                 className="w-4 h-4 accent-accent cursor-pointer"
               />
@@ -189,8 +287,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   fontSize: 12,
                   lineHeight: 1.5,
                   showTimestamp: true,
+                  timestampFormat: "time",
                   showPid: true,
-                  showTid: true,
+                  showTid: false,
+                  showPackageName: true,
+                  showProcessName: false,
+                  showLevel: true,
+                  showTag: true,
+                  hideRepeatedTags: false,
                   maxLogLines: 100000,
                 });
               }}
@@ -204,4 +308,3 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     </>
   );
 }
-
