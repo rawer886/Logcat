@@ -106,6 +106,7 @@ const LogRow = memo(function LogRow({
     showPid: boolean;
     showTid: boolean;
     fontSize: number;
+    wrapLines: boolean;
   };
   columnWidths: ColumnWidths;
 }) {
@@ -143,6 +144,7 @@ const LogRow = memo(function LogRow({
       style={{
         ...style,
         fontSize: `${settings.fontSize}px`,
+        lineHeight: "1.5",
       }}
       className={cn(
         "flex items-start font-mono hover:bg-surface-elevated/50 transition-colors",
@@ -197,7 +199,15 @@ const LogRow = memo(function LogRow({
       </div>
 
       {/* Message */}
-      <div className="flex-1 min-w-0 px-2 py-1 text-text-primary whitespace-pre-wrap break-all">
+      <div 
+        className={cn(
+          "flex-1 min-w-[200px] px-2 py-1 text-text-primary",
+          settings.wrapLines 
+            ? "whitespace-pre-wrap break-all" 
+            : "whitespace-pre"
+        )}
+        style={{ lineHeight: "1.8" }}
+      >
         {searchRegex ? renderHighlightedText(entry.message) : entry.message}
       </div>
     </div>
@@ -224,12 +234,16 @@ export function LogList() {
     filter.isCaseSensitive
   );
 
-  // Virtual list configuration
+  // Virtual list configuration with dynamic height support
   const virtualizer = useVirtualizer({
     count: filteredLogs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 28, // Estimated row height
+    estimateSize: () => settings.wrapLines ? 60 : 28, // Larger estimate when wrapping
     overscan: 20, // Number of items to render outside of the visible area
+    measureElement: (element) => {
+      // Measure actual element height for dynamic sizing
+      return element?.getBoundingClientRect().height ?? (settings.wrapLines ? 60 : 28);
+    },
   });
 
   // Auto-scroll to bottom when new logs arrive
@@ -261,102 +275,121 @@ export function LogList() {
     showPid: settings.showPid,
     showTid: settings.showTid,
     fontSize: settings.fontSize,
+    wrapLines: settings.wrapLines,
   };
 
-  return (
-    <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme">
-      {/* Column Headers */}
-      <div
-        className="flex items-center font-mono text-xs font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none"
-        style={{ fontSize: `${settings.fontSize}px` }}
-      >
-        {settings.showTimestamp && (
-          <ResizableHeader
-            width={columnWidths.timestamp}
-            onResize={(delta) => handleColumnResize("timestamp", delta)}
-            minWidth={60}
-          >
-            <div className="px-2 py-2 text-text-secondary">时间</div>
-          </ResizableHeader>
-        )}
-        {settings.showPid && (
-          <ResizableHeader
-            width={columnWidths.pid}
-            onResize={(delta) => handleColumnResize("pid", delta)}
-            minWidth={40}
-          >
-            <div className="px-2 py-2 text-text-secondary text-right">PID</div>
-          </ResizableHeader>
-        )}
-        {settings.showTid && (
-          <ResizableHeader
-            width={columnWidths.tid}
-            onResize={(delta) => handleColumnResize("tid", delta)}
-            minWidth={40}
-          >
-            <div className="px-2 py-2 text-text-secondary text-right">TID</div>
-          </ResizableHeader>
-        )}
-        <ResizableHeader
-          width={columnWidths.level}
-          onResize={(delta) => handleColumnResize("level", delta)}
-          minWidth={30}
-        >
-          <div className="px-2 py-2 text-text-secondary text-center">级别</div>
-        </ResizableHeader>
-        <ResizableHeader
-          width={columnWidths.tag}
-          onResize={(delta) => handleColumnResize("tag", delta)}
-          minWidth={60}
-        >
-          <div className="px-2 py-2 text-text-secondary">TAG</div>
-        </ResizableHeader>
-        <div className="flex-1 px-2 py-2 text-text-secondary">消息</div>
-      </div>
+  // Calculate minimum content width based on column widths
+  const minContentWidth = 
+    (settings.showTimestamp ? columnWidths.timestamp : 0) +
+    (settings.showPid ? columnWidths.pid : 0) +
+    (settings.showTid ? columnWidths.tid : 0) +
+    columnWidths.level +
+    columnWidths.tag +
+    500; // minimum message width
 
-      {/* Virtual List */}
-      <div
+  return (
+    <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
+      {/* Scrollable container for both header and content */}
+      <div 
         ref={parentRef}
         className="flex-1 overflow-auto"
         onScroll={handleScroll}
       >
-        {filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-text-muted">
-            <div className="text-center">
-              <div className="text-4xl mb-4">📋</div>
-              <div className="text-lg">暂无日志</div>
-              <div className="text-sm mt-2">连接设备后日志将显示在这里</div>
-            </div>
-          </div>
-        ) : (
+        {/* Inner container with min-width for horizontal scroll */}
+        <div style={{ minWidth: settings.wrapLines ? undefined : minContentWidth }}>
+          {/* Column Headers - sticky */}
           <div
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
+            className="flex items-center font-mono text-xs font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none"
+            style={{ fontSize: `${settings.fontSize}px` }}
           >
-            {virtualizer.getVirtualItems().map((virtualRow) => {
-              const entry = filteredLogs[virtualRow.index];
-              return (
-                <LogRow
-                  key={entry.id}
-                  entry={entry}
-                  searchRegex={searchRegex}
-                  settings={rowSettings}
-                  columnWidths={columnWidths}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                />
-              );
-            })}
+            {settings.showTimestamp && (
+              <ResizableHeader
+                width={columnWidths.timestamp}
+                onResize={(delta) => handleColumnResize("timestamp", delta)}
+                minWidth={60}
+              >
+                <div className="px-2 py-2 text-text-secondary">时间</div>
+              </ResizableHeader>
+            )}
+            {settings.showPid && (
+              <ResizableHeader
+                width={columnWidths.pid}
+                onResize={(delta) => handleColumnResize("pid", delta)}
+                minWidth={40}
+              >
+                <div className="px-2 py-2 text-text-secondary text-right">PID</div>
+              </ResizableHeader>
+            )}
+            {settings.showTid && (
+              <ResizableHeader
+                width={columnWidths.tid}
+                onResize={(delta) => handleColumnResize("tid", delta)}
+                minWidth={40}
+              >
+                <div className="px-2 py-2 text-text-secondary text-right">TID</div>
+              </ResizableHeader>
+            )}
+            <ResizableHeader
+              width={columnWidths.level}
+              onResize={(delta) => handleColumnResize("level", delta)}
+              minWidth={30}
+            >
+              <div className="px-2 py-2 text-text-secondary text-center">级别</div>
+            </ResizableHeader>
+            <ResizableHeader
+              width={columnWidths.tag}
+              onResize={(delta) => handleColumnResize("tag", delta)}
+              minWidth={60}
+            >
+              <div className="px-2 py-2 text-text-secondary">TAG</div>
+            </ResizableHeader>
+            <div className="flex-1 min-w-[200px] px-2 py-2 text-text-secondary">消息</div>
           </div>
-        )}
+
+          {/* Virtual List Content */}
+          {filteredLogs.length === 0 ? (
+            <div className="flex items-center justify-center h-[400px] text-text-muted">
+              <div className="text-center">
+                <div className="text-4xl mb-4">📋</div>
+                <div className="text-lg">暂无日志</div>
+                <div className="text-sm mt-2">连接设备后日志将显示在这里</div>
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const entry = filteredLogs[virtualRow.index];
+                return (
+                  <div
+                    key={entry.id}
+                    data-index={virtualRow.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <LogRow
+                      entry={entry}
+                      searchRegex={searchRegex}
+                      settings={rowSettings}
+                      columnWidths={columnWidths}
+                      style={{}}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

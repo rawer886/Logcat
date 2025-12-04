@@ -6,6 +6,7 @@ import {
   ArrowDown,
   Download,
   Circle,
+  WrapText,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
@@ -20,9 +21,11 @@ export function StatusBar() {
     autoScroll,
     isConnected,
     filteredLogs,
+    settings,
     togglePause,
     setAutoScroll,
     clearLogs,
+    updateSettings,
   } = useLogStore();
 
   const { selectedDevice, clearDeviceLogs } = useLogStream();
@@ -164,6 +167,21 @@ export function StatusBar() {
         >
           <ArrowDown className="w-3.5 h-3.5" />
           <span>自动滚动</span>
+        </button>
+
+        {/* Wrap Lines */}
+        <button
+          onClick={() => updateSettings({ wrapLines: !settings.wrapLines })}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-1 rounded transition-colors",
+            settings.wrapLines
+              ? "bg-accent/20 text-accent"
+              : "hover:bg-surface-elevated text-text-secondary hover:text-text-primary"
+          )}
+          title={settings.wrapLines ? "自动换行已开启" : "自动换行已关闭"}
+        >
+          <WrapText className="w-3.5 h-3.5" />
+          <span>换行</span>
         </button>
 
         {/* Clear */}
