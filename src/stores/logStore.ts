@@ -170,42 +170,56 @@ export const useLogStore = create<LogState>()(
     
     // Actions - Logs
     addLog: (entry) => {
-      const { logs, filter, settings, isPaused } = get();
-      if (isPaused) return;
-      
-      const newLogs = [...logs, entry];
-      
-      // Limit log buffer size
-      if (newLogs.length > settings.maxLogLines) {
-        newLogs.splice(0, newLogs.length - settings.maxLogLines);
-      }
-      
-      const newFilteredLogs = filterLogs(newLogs, filter);
-      const newStats = calculateStats(newLogs, newFilteredLogs);
-      
-      set({
-        logs: newLogs,
-        filteredLogs: newFilteredLogs,
-        stats: newStats,
-      });
+      get().addLogs([entry]);
     },
     
     addLogs: (entries) => {
-      const { logs, filter, settings, isPaused } = get();
-      if (isPaused) return;
+      const { logs, filteredLogs, filter, settings, isPaused, stats } = get();
+      if (isPaused || entries.length === 0) return;
       
-      let newLogs = [...logs, ...entries];
+      let mergedLogs = [...logs, ...entries];
+      let removedLogs: LogEntry[] = [];
       
-      // Limit log buffer size
-      if (newLogs.length > settings.maxLogLines) {
-        newLogs = newLogs.slice(-settings.maxLogLines);
+      if (mergedLogs.length > settings.maxLogLines) {
+        const excess = mergedLogs.length - settings.maxLogLines;
+        removedLogs = mergedLogs.slice(0, excess);
+        mergedLogs = mergedLogs.slice(excess);
       }
       
-      const newFilteredLogs = filterLogs(newLogs, filter);
-      const newStats = calculateStats(newLogs, newFilteredLogs);
+      const removedIds = removedLogs.length > 0
+        ? new Set(removedLogs.map((entry) => entry.id))
+        : null;
+      
+      const preservedFiltered = removedIds
+        ? filteredLogs.filter((entry) => !removedIds.has(entry.id))
+        : filteredLogs;
+      
+      const appendedFiltered = filterLogs(entries, filter);
+      const newFilteredLogs = appendedFiltered.length > 0
+        ? [...preservedFiltered, ...appendedFiltered]
+        : preservedFiltered !== filteredLogs
+          ? preservedFiltered
+          : filteredLogs;
+      
+      const nextByLevel: Record<LogLevel, number> = { ...stats.byLevel };
+      for (const entry of entries) {
+        nextByLevel[entry.level] = (nextByLevel[entry.level] ?? 0) + 1;
+      }
+      for (const entry of removedLogs) {
+        nextByLevel[entry.level] = Math.max(
+          0,
+          (nextByLevel[entry.level] ?? 0) - 1
+        );
+      }
+      
+      const newStats: LogStats = {
+        total: stats.total + entries.length - removedLogs.length,
+        filtered: newFilteredLogs.length,
+        byLevel: nextByLevel,
+      };
       
       set({
-        logs: newLogs,
+        logs: mergedLogs,
         filteredLogs: newFilteredLogs,
         stats: newStats,
       });
@@ -250,8 +264,6 @@ export const useLogStore = create<LogState>()(
         selectedDevice: device,
         importedFileName: null, // Clear imported file when selecting device
       });
-      // Clear logs when switching devices
-      get().clearLogs();
     },
     
     // Actions - Processes
@@ -379,7 +391,10 @@ export const useLogStore = create<LogState>()(
     
     setLoading: (loading) => set({ isLoading: loading }),
     
-    setAutoScroll: (autoScroll) => set({ autoScroll }),
+    setAutoScroll: (autoScroll) =>
+      set((state) =>
+        state.autoScroll === autoScroll ? state : { autoScroll }
+      ),
     
     // Actions - Settings
     updateSettings: (newSettings) => {

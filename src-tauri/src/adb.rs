@@ -269,6 +269,9 @@ impl AdbManager {
             }
         });
 
+        info!("Clearing logcat buffer before streaming");
+        self.clear_logcat(device_id).await?;
+
         let mut child = Command::new(&self.adb_path)
             .args(["-s", device_id, "logcat", "-v", "threadtime"])
             .stdout(Stdio::piped())

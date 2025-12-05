@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, memo, useState } from "react";
+import React, { useRef, useEffect, useCallback, memo, useState, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn, highlightMatches, createSearchRegex } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
@@ -120,14 +120,12 @@ const LogRow = memo(function LogRow({
   entry,
   prevEntry,
   searchRegex,
-  style,
   settings,
   columnWidths,
 }: {
   entry: LogEntry;
   prevEntry: LogEntry | null;
   searchRegex: RegExp | null;
-  style: React.CSSProperties;
   settings: {
     showTimestamp: boolean;
     timestampFormat: TimestampFormat;
@@ -191,7 +189,6 @@ const LogRow = memo(function LogRow({
   return (
     <div
       style={{
-        ...style,
         fontSize: `${settings.fontSize}px`,
         lineHeight: `${settings.lineHeight}`,
       }}
@@ -283,9 +280,10 @@ const LogRow = memo(function LogRow({
 });
 
 export function LogList() {
-  const { filteredLogs, autoScroll, settings, filter } = useLogStore();
+  const { filteredLogs, autoScroll, settings, filter, setAutoScroll } = useLogStore();
   const parentRef = useRef<HTMLDivElement>(null);
   const prevLogCountRef = useRef(0);
+  const prevAutoScrollRef = useRef(autoScroll);
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
 
   const handleColumnResize = (column: keyof ColumnWidths, delta: number) => {
@@ -296,10 +294,14 @@ export function LogList() {
   };
 
   // Create search regex for highlighting
-  const searchRegex = createSearchRegex(
-    filter.searchText,
-    filter.isRegex,
-    filter.isCaseSensitive
+  const searchRegex = useMemo(
+    () =>
+      createSearchRegex(
+        filter.searchText,
+        filter.isRegex,
+        filter.isCaseSensitive
+      ),
+    [filter.searchText, filter.isRegex, filter.isCaseSensitive]
   );
 
   // Virtual list configuration with dynamic height support
@@ -328,6 +330,20 @@ export function LogList() {
     prevLogCountRef.current = filteredLogs.length;
   }, [filteredLogs.length, autoScroll, virtualizer]);
 
+  useEffect(() => {
+    if (
+      autoScroll &&
+      !prevAutoScrollRef.current &&
+      filteredLogs.length > 0
+    ) {
+      virtualizer.scrollToIndex(filteredLogs.length - 1, {
+        align: "end",
+        behavior: "smooth",
+      });
+    }
+    prevAutoScrollRef.current = autoScroll;
+  }, [autoScroll, filteredLogs.length, virtualizer]);
+
   // Handle scroll events from LeftToolbar
   useEffect(() => {
     const handleScrollToTop = () => {
@@ -338,6 +354,7 @@ export function LogList() {
       if (filteredLogs.length > 0) {
         virtualizer.scrollToIndex(filteredLogs.length - 1, { align: "end", behavior: "smooth" });
       }
+      setAutoScroll(true);
     };
 
     window.addEventListener("logcat:scrollToTop", handleScrollToTop);
@@ -347,46 +364,95 @@ export function LogList() {
       window.removeEventListener("logcat:scrollToTop", handleScrollToTop);
       window.removeEventListener("logcat:scrollToBottom", handleScrollToBottom);
     };
-  }, [virtualizer, filteredLogs.length]);
+  }, [virtualizer, filteredLogs.length, setAutoScroll]);
 
-  // Handle scroll
+  // Handle scroll（目前不再自动关闭自动滚动，只保留占位，方便未来扩展）
   const handleScroll = useCallback(() => {
-    if (!parentRef.current || !autoScroll) return;
-  }, [autoScroll]);
+    // no-op
+  }, []);
 
-  const rowSettings = {
-    showTimestamp: settings.showTimestamp,
-    timestampFormat: settings.timestampFormat,
-    showPid: settings.showPid,
-    showTid: settings.showTid,
-    showPackageName: settings.showPackageName,
-    showProcessName: settings.showProcessName,
-    hideRepeatedPackageName: settings.hideRepeatedPackageName,
-    hideRepeatedProcessName: settings.hideRepeatedProcessName,
-    showLevel: settings.showLevel,
-    showTag: settings.showTag,
-    hideRepeatedTags: settings.hideRepeatedTags,
-    fontSize: settings.fontSize,
-    lineHeight: settings.lineHeight,
-    wrapLines: settings.wrapLines,
-  };
+  const rowSettings = useMemo(
+    () => ({
+      showTimestamp: settings.showTimestamp,
+      timestampFormat: settings.timestampFormat,
+      showPid: settings.showPid,
+      showTid: settings.showTid,
+      showPackageName: settings.showPackageName,
+      showProcessName: settings.showProcessName,
+      hideRepeatedPackageName: settings.hideRepeatedPackageName,
+      hideRepeatedProcessName: settings.hideRepeatedProcessName,
+      showLevel: settings.showLevel,
+      showTag: settings.showTag,
+      hideRepeatedTags: settings.hideRepeatedTags,
+      fontSize: settings.fontSize,
+      lineHeight: settings.lineHeight,
+      wrapLines: settings.wrapLines,
+    }),
+    [
+      settings.showTimestamp,
+      settings.timestampFormat,
+      settings.showPid,
+      settings.showTid,
+      settings.showPackageName,
+      settings.showProcessName,
+      settings.hideRepeatedPackageName,
+      settings.hideRepeatedProcessName,
+      settings.showLevel,
+      settings.showTag,
+      settings.hideRepeatedTags,
+      settings.fontSize,
+      settings.lineHeight,
+      settings.wrapLines,
+    ]
+  );
 
   // Calculate minimum content width based on column widths
-  const minContentWidth = 
-    (settings.showTimestamp ? columnWidths.timestamp : 0) +
-    (settings.showPid ? columnWidths.pid : 0) +
-    (settings.showPackageName ? columnWidths.packageName : 0) +
-    (settings.showProcessName ? columnWidths.processName : 0) +
-    (settings.showLevel ? columnWidths.level : 0) +
-    (settings.showTag ? columnWidths.tag : 0) +
-    500;
+  const minContentWidth = useMemo(
+    () =>
+      (settings.showTimestamp ? columnWidths.timestamp : 0) +
+      (settings.showPid ? columnWidths.pid : 0) +
+      (settings.showPackageName ? columnWidths.packageName : 0) +
+      (settings.showProcessName ? columnWidths.processName : 0) +
+      (settings.showLevel ? columnWidths.level : 0) +
+      (settings.showTag ? columnWidths.tag : 0) +
+      500,
+    [
+      columnWidths.level,
+      columnWidths.packageName,
+      columnWidths.pid,
+      columnWidths.processName,
+      columnWidths.tag,
+      columnWidths.timestamp,
+      settings.showLevel,
+      settings.showPackageName,
+      settings.showPid,
+      settings.showProcessName,
+      settings.showTag,
+      settings.showTimestamp,
+    ]
+  );
+
+  useEffect(() => {
+    virtualizer.measure();
+  }, [
+    virtualizer,
+    settings.wrapLines,
+    settings.fontSize,
+    settings.lineHeight,
+    columnWidths.timestamp,
+    columnWidths.pid,
+    columnWidths.packageName,
+    columnWidths.processName,
+    columnWidths.level,
+    columnWidths.tag,
+  ]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
       {/* Scrollable container for both header and content */}
       <div 
         ref={parentRef}
-        className="flex-1 overflow-auto"
+        className="flex-1 overflow-auto min-h-0"
         onScroll={handleScroll}
       >
         {/* Inner container with min-width for horizontal scroll */}
@@ -496,7 +562,6 @@ export function LogList() {
                       searchRegex={searchRegex}
                       settings={rowSettings}
                       columnWidths={columnWidths}
-                      style={{}}
                     />
                   </div>
                 );

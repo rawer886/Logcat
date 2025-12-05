@@ -62,6 +62,7 @@ export function Toolbar() {
     isConnected,
     startLogcat,
     stopLogcat,
+    refreshDevices,
   } = useLogStream();
   const {
     filter,
@@ -84,6 +85,18 @@ export function Toolbar() {
     }
     await startLogcat(device.id);
   };
+
+  const toggleDeviceMenu = useCallback(() => {
+    setIsDeviceMenuOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        refreshDevices().catch((error) => {
+          console.error("Failed to refresh devices:", error);
+        });
+      }
+      return next;
+    });
+  }, [refreshDevices]);
 
   // Get current word being typed (last word after space or |)
   const getCurrentWord = useCallback((text: string) => {
@@ -231,7 +244,7 @@ export function Toolbar() {
       {/* Device/File Selector */}
       <div className="relative">
         <button
-          onClick={() => setIsDeviceMenuOpen(!isDeviceMenuOpen)}
+          onClick={toggleDeviceMenu}
           className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium",
             "bg-surface hover:bg-surface-elevated border border-border",

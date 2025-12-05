@@ -132,44 +132,13 @@ export function useLogStream(): UseLogStreamReturn {
     [clearLogs]
   );
 
-  // Track if we've auto-connected
-  const hasAutoConnectedRef = useRef(false);
-
-  // Auto-select first device when devices are loaded
   useEffect(() => {
-    if (
-      !hasAutoConnectedRef.current &&
-      !isConnected &&
-      !selectedDevice &&
-      devices.length > 0
-    ) {
-      // Find first available device (state === "device")
-      const availableDevice = devices.find((d) => d.state === "device");
-      if (availableDevice) {
-        hasAutoConnectedRef.current = true;
-        startLogcat(availableDevice.id).catch((error) => {
-          console.error("Auto-connect failed:", error);
-          hasAutoConnectedRef.current = false;
-        });
-      }
-    }
-  }, [devices, isConnected, selectedDevice, startLogcat]);
-
-  // Initial device refresh
-  useEffect(() => {
-    refreshDevices();
-
-    // Set up interval to refresh devices
-    const interval = setInterval(refreshDevices, 5000);
-
     return () => {
-      clearInterval(interval);
-      // Clean up listener on unmount
       if (unlistenRef.current) {
         unlistenRef.current();
       }
     };
-  }, [refreshDevices]);
+  }, []);
 
   return {
     isConnected,

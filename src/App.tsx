@@ -28,7 +28,7 @@ function App() {
         <LeftToolbar />
 
         {/* Log List */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           <LogList />
         </div>
       </div>
