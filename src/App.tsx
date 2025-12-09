@@ -4,9 +4,17 @@ import { LogList } from "./components/LogList";
 import { StatusBar } from "./components/StatusBar";
 import { LeftToolbar } from "./components/LeftToolbar";
 import { useLogStore } from "./stores/logStore";
+import { useDeviceMonitor } from "./hooks/useDeviceMonitor";
+import { useAutoSelectDevice } from "./hooks/useAutoSelectDevice";
 
 function App() {
   const { settings } = useLogStore();
+
+  // Monitor device connection/disconnection events
+  useDeviceMonitor();
+
+  // Auto-select device on startup
+  useAutoSelectDevice();
 
   // Apply theme on mount
   useEffect(() => {
