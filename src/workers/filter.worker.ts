@@ -296,7 +296,7 @@ function matchOrGroup(value: string, group: OrGroup): boolean {
   return true;
 }
 
-function matchesQuery(entry: LogEntry, query: ParsedQuery): boolean {
+function matchesQuery(entry: LogEntry, query: ParsedQuery, isCaseSensitive: boolean = false): boolean {
   // Level filter
   if (query.minLevel) {
     const levelOrder = ["V", "VERBOSE", "D", "DEBUG", "I", "INFO", "W", "WARN", "E", "ERROR", "A", "ASSERT"];
@@ -381,10 +381,18 @@ function matchesQuery(entry: LogEntry, query: ParsedQuery): boolean {
 
   // Text search
   if (query.text) {
-    const searchText = query.text.toLowerCase();
-    const searchTarget = `${entry.tag} ${entry.message}`.toLowerCase();
-    if (!searchTarget.includes(searchText)) {
-      return false;
+    const searchTarget = `${entry.tag} ${entry.message}`;
+    const searchText = query.text;
+
+    // 根据 isCaseSensitive 决定是否区分大小写
+    if (isCaseSensitive) {
+      if (!searchTarget.includes(searchText)) {
+        return false;
+      }
+    } else {
+      if (!searchTarget.toLowerCase().includes(searchText.toLowerCase())) {
+        return false;
+      }
     }
   }
 
@@ -402,7 +410,7 @@ function filterLogs(logs: LogEntry[], filter: FilterConfig): LogEntry[] {
 
   return logs.filter((log) => {
     // 使用解析后的查询匹配
-    if (!matchesQuery(log, parsedQuery)) {
+    if (!matchesQuery(log, parsedQuery, filter.isCaseSensitive)) {
       return false;
     }
 
