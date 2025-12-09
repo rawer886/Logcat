@@ -102,12 +102,13 @@ const ResizableHeader = ({
   return (
     <div className="relative flex-shrink-0 border-r border-border group" style={{ width }}>
       {children}
-      {/* Resize handle with enhanced visibility */}
+      {/* Resize handle with balanced visibility */}
       <div
         className={cn(
-          "absolute right-0 top-0 bottom-0 w-[8px] cursor-col-resize flex items-center justify-center",
+          "absolute right-0 top-0 bottom-0 w-[10px] cursor-col-resize flex items-center justify-center z-10",
           "translate-x-1/2 transition-all duration-150",
-          "hover:bg-accent/10"
+          isResizing && "bg-blue-500/8",
+          isHovering && !isResizing && "bg-blue-400/5"
         )}
         onMouseDown={handleMouseDown}
         onMouseEnter={() => setIsHovering(true)}
@@ -117,12 +118,12 @@ const ResizableHeader = ({
         {/* Visible handle bar */}
         <div
           className={cn(
-            "w-[2px] h-full rounded-full transition-all duration-150",
+            "h-full rounded-full transition-all duration-150",
             isResizing
-              ? "bg-accent w-[3px] shadow-lg"
+              ? "w-[2.5px] bg-blue-500 shadow-md"
               : isHovering
-                ? "bg-accent/80 w-[2.5px]"
-                : "bg-border-strong/60 group-hover:bg-accent/50"
+                ? "w-[2px] bg-blue-400/90"
+                : "w-[1.5px] bg-gray-400/50 group-hover:bg-blue-400/60"
           )}
         />
       </div>
