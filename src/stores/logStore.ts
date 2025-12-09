@@ -201,6 +201,7 @@ export const useLogStore = create<LogState>()(
           ? preservedFiltered
           : filteredLogs;
       
+      // 增量更新统计信息
       const nextByLevel: Record<LogLevel, number> = { ...stats.byLevel };
       for (const entry of entries) {
         nextByLevel[entry.level] = (nextByLevel[entry.level] ?? 0) + 1;
@@ -211,7 +212,7 @@ export const useLogStore = create<LogState>()(
           (nextByLevel[entry.level] ?? 0) - 1
         );
       }
-      
+
       const newStats: LogStats = {
         total: stats.total + entries.length - removedLogs.length,
         filtered: newFilteredLogs.length,
