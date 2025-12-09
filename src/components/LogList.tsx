@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback, memo, useState, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { cn, highlightMatches, createSearchRegex } from "../lib/utils";
+import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import { LOG_LEVEL_INFO, type LogEntry, type LogLevel, type TimestampFormat } from "../types";
 
@@ -149,14 +149,12 @@ function arePropsEqual(
   prevProps: {
     entry: LogEntry;
     prevEntry: LogEntry | null;
-    searchRegex: RegExp | null;
     settings: any;
     columnWidths: ColumnWidths;
   },
   nextProps: {
     entry: LogEntry;
     prevEntry: LogEntry | null;
-    searchRegex: RegExp | null;
     settings: any;
     columnWidths: ColumnWidths;
   }
@@ -168,12 +166,6 @@ function arePropsEqual(
 
   // 前一个 entry 的变化（用于判断重复显示）
   if (prevProps.prevEntry?.id !== nextProps.prevEntry?.id) {
-    return false;
-  }
-
-  // 搜索正则变化
-  if (prevProps.searchRegex?.source !== nextProps.searchRegex?.source ||
-      prevProps.searchRegex?.flags !== nextProps.searchRegex?.flags) {
     return false;
   }
 
@@ -197,13 +189,11 @@ function arePropsEqual(
 const LogRow = memo(function LogRow({
   entry,
   prevEntry,
-  searchRegex,
   settings,
   columnWidths,
 }: {
   entry: LogEntry;
   prevEntry: LogEntry | null;
-  searchRegex: RegExp | null;
   settings: {
     showTimestamp: boolean;
     timestampFormat: TimestampFormat;
@@ -240,20 +230,6 @@ const LogRow = memo(function LogRow({
       default:
         return "";
     }
-  };
-
-  // Highlight search matches in message
-  const renderHighlightedText = (text: string) => {
-    const parts = highlightMatches(text, searchRegex);
-    return parts.map((part, index) =>
-      part.isMatch ? (
-        <mark key={index} className="highlight-match">
-          {part.text}
-        </mark>
-      ) : (
-        <span key={index}>{part.text}</span>
-      )
-    );
   };
 
   // Format PID/TID display
@@ -342,16 +318,16 @@ const LogRow = memo(function LogRow({
       )}
 
       {/* Message */}
-      <div 
+      <div
         className={cn(
           "flex-1 min-w-[200px] px-2 py-1 text-text-primary",
-          settings.wrapLines 
-            ? "whitespace-pre-wrap break-all" 
+          settings.wrapLines
+            ? "whitespace-pre-wrap break-all"
             : "whitespace-pre"
         )}
         style={{ lineHeight: `${settings.lineHeight}` }}
       >
-        {searchRegex ? renderHighlightedText(entry.message) : entry.message}
+        {entry.message}
       </div>
     </div>
   );
@@ -370,9 +346,6 @@ export function LogList() {
       [column]: prev[column] + delta,
     }));
   };
-
-  // Disable search highlighting
-  const searchRegex = null;
 
   // Virtual list configuration with dynamic height support
   const virtualizer = useVirtualizer({
@@ -657,7 +630,6 @@ export function LogList() {
                     <LogRow
                       entry={entry}
                       prevEntry={prevEntry}
-                      searchRegex={searchRegex}
                       settings={rowSettings}
                       columnWidths={columnWidths}
                     />
