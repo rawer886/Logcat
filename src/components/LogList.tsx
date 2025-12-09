@@ -212,6 +212,17 @@ const LogRow = memo(function LogRow({
   };
   columnWidths: ColumnWidths;
 }) {
+  // System marker special rendering
+  if (entry.isSystemMarker) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border-l-4 border-blue-500">
+        <span className="text-sm text-blue-400 font-medium">
+          {entry.message}
+        </span>
+      </div>
+    );
+  }
+
   const levelInfo = LOG_LEVEL_INFO[entry.level];
   
   // Check if values are repeated
