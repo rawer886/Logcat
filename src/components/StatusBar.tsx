@@ -1,4 +1,4 @@
-import React from "react";
+import { useMemo } from "react";
 import { Circle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
@@ -10,6 +10,24 @@ export function StatusBar() {
     isPaused,
     isConnected,
   } = useLogStore();
+
+  // 缓存级别统计的渲染，避免每次 stats 更新都重新计算
+  const levelCounts = useMemo(() => {
+    return (["E", "W", "I", "D", "V"] as LogLevel[]).map((level) => {
+      const count = stats.byLevel[level];
+      if (count === 0) return null;
+      return (
+        <span
+          key={level}
+          className="flex items-center gap-1"
+          style={{ color: LOG_LEVEL_INFO[level].color }}
+        >
+          <span className="font-bold">{level}</span>
+          <span>{count.toLocaleString()}</span>
+        </span>
+      );
+    });
+  }, [stats.byLevel]);
 
   return (
     <div className="flex items-center justify-between px-4 py-1.5 bg-surface-secondary border-t border-border text-xs transition-theme">
@@ -47,20 +65,7 @@ export function StatusBar() {
 
         {/* Level Breakdown */}
         <div className="flex items-center gap-2">
-          {(["E", "W", "I", "D", "V"] as LogLevel[]).map((level) => {
-            const count = stats.byLevel[level];
-            if (count === 0) return null;
-            return (
-              <span
-                key={level}
-                className="flex items-center gap-1"
-                style={{ color: LOG_LEVEL_INFO[level].color }}
-              >
-                <span className="font-bold">{level}</span>
-                <span>{count.toLocaleString()}</span>
-              </span>
-            );
-          })}
+          {levelCounts}
         </div>
       </div>
     </div>
