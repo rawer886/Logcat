@@ -3,6 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 import type {
   LogEntry,
   Device,
+  DeviceLogCollection,
   ProcessInfo,
   FilterConfig,
   FilterPreset,
@@ -18,48 +19,53 @@ import {
 import { createSearchRegex, generateId, parseLogcatQuery, matchesQuery } from "../lib/utils";
 
 interface LogState {
-  // Logs
-  logs: LogEntry[];
+  // Logs - 多设备日志存储
+  deviceLogs: Map<string, DeviceLogCollection>;  // 每个设备的日志集合
+  currentLogs: LogEntry[];  // 当前显示的日志（当前设备或导入的）
   filteredLogs: LogEntry[];
-  
+
   // Devices
   devices: Device[];
   selectedDevice: Device | null;
-  
+  lastSelectedDeviceId: string | null;  // 记录上次选中的设备
+
   // Imported file
   importedFileName: string | null;
-  
+
   // Processes
   processes: ProcessInfo[];
   selectedProcess: ProcessInfo | null;
-  
+
   // Filter
   filter: FilterConfig;
   filterPresets: FilterPreset[];
   filterHistory: FilterHistoryItem[];
-  
+
   // UI State
   isPaused: boolean;
   isConnected: boolean;
   isLoading: boolean;
   autoScroll: boolean;
-  
+
   // Settings
   settings: AppSettings;
-  
+
   // Stats
   stats: LogStats;
-  
+
   // Actions - Logs
   addLog: (entry: LogEntry) => void;
   addLogs: (entries: LogEntry[]) => void;
+  addLogsForDevice: (deviceId: string, entries: LogEntry[]) => void;  // 新增：为设备添加日志
   clearLogs: () => void;
   importLogs: (entries: LogEntry[], fileName?: string) => void;
   clearImportedFile: () => void;
-  
+
   // Actions - Devices
   setDevices: (devices: Device[]) => void;
   selectDevice: (device: Device | null) => void;
+  switchToDevice: (deviceId: string) => void;  // 新增：切换到设备
+  addDeviceMarker: (deviceId: string, message: string, type: 'disconnect' | 'reconnect') => void;  // 新增：添加设备标注
   
   // Actions - Processes
   setProcesses: (processes: ProcessInfo[]) => void;
@@ -147,10 +153,12 @@ function calculateStats(logs: LogEntry[], filteredLogs: LogEntry[]): LogStats {
 export const useLogStore = create<LogState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
-    logs: [],
+    deviceLogs: new Map<string, DeviceLogCollection>(),  // 多设备日志存储
+    currentLogs: [],  // 当前显示的日志
     filteredLogs: [],
     devices: [],
     selectedDevice: null,
+    lastSelectedDeviceId: null,  // 记录上次选中的设备
     importedFileName: null,
     processes: [],
     selectedProcess: null,
@@ -226,9 +234,53 @@ export const useLogStore = create<LogState>()(
       });
     },
     
+    // 新增：为设备添加日志
+    addLogsForDevice: (deviceId, entries) => {
+      const { deviceLogs, selectedDevice, settings, filter, isPaused } = get();
+      if (isPaused || entries.length === 0) return;
+
+      // 为日志条目添加 deviceId
+      const entriesWithDevice = entries.map(e => ({ ...e, deviceId }));
+
+      // 获取或创建设备日志集合
+      let collection = deviceLogs.get(deviceId);
+      if (!collection) {
+        const device = get().devices.find(d => d.id === deviceId);
+        collection = {
+          deviceId,
+          deviceName: device?.name || deviceId,
+          logs: [],
+          lastActiveTime: Date.now(),
+        };
+      }
+
+      // 添加日志并应用独立的 maxLogLines 限制
+      let mergedLogs = [...collection.logs, ...entriesWithDevice];
+      if (mergedLogs.length > settings.maxLogLines) {
+        mergedLogs = mergedLogs.slice(mergedLogs.length - settings.maxLogLines);
+      }
+
+      collection.logs = mergedLogs;
+      collection.lastActiveTime = Date.now();
+
+      // 更新 Map
+      const newDeviceLogs = new Map(deviceLogs);
+      newDeviceLogs.set(deviceId, collection);
+
+      // 如果是当前选中设备，更新 currentLogs 和 filteredLogs
+      let updates: any = { deviceLogs: newDeviceLogs };
+      if (selectedDevice?.id === deviceId) {
+        updates.currentLogs = mergedLogs;
+        updates.filteredLogs = filterLogs(mergedLogs, filter);
+        updates.stats = calculateStats(mergedLogs, updates.filteredLogs);
+      }
+
+      set(updates);
+    },
+
     clearLogs: () => {
       set({
-        logs: [],
+        currentLogs: [],
         filteredLogs: [],
         stats: {
           total: 0,
@@ -237,14 +289,16 @@ export const useLogStore = create<LogState>()(
         },
       });
     },
-    
+
     importLogs: (entries, fileName) => {
       const { filter } = get();
+
+      // 导入的日志没有 deviceId，不添加到 deviceLogs
       const newFilteredLogs = filterLogs(entries, filter);
       const newStats = calculateStats(entries, newFilteredLogs);
-      
+
       set({
-        logs: entries,
+        currentLogs: entries,
         filteredLogs: newFilteredLogs,
         stats: newStats,
         isPaused: true, // Pause when importing logs
@@ -261,12 +315,52 @@ export const useLogStore = create<LogState>()(
     setDevices: (devices) => set({ devices }),
     
     selectDevice: (device) => {
-      set({ 
+      set({
         selectedDevice: device,
         importedFileName: null, // Clear imported file when selecting device
       });
     },
-    
+
+    // 新增：切换到设备
+    switchToDevice: (deviceId) => {
+      const { deviceLogs, filter, devices } = get();
+
+      const device = devices.find(d => d.id === deviceId);
+      if (!device) return;
+
+      // 获取设备日志
+      const collection = deviceLogs.get(deviceId);
+      const logs = collection?.logs || [];
+      const filteredLogs = filterLogs(logs, filter);
+      const stats = calculateStats(logs, filteredLogs);
+
+      set({
+        selectedDevice: device,
+        currentLogs: logs,
+        filteredLogs,
+        stats,
+        lastSelectedDeviceId: deviceId,
+        importedFileName: null,
+      });
+    },
+
+    // 新增：添加设备标注
+    addDeviceMarker: (deviceId, message, type) => {
+      const markerEntry: LogEntry = {
+        id: Date.now(),
+        deviceId,
+        timestamp: new Date().toLocaleTimeString(),
+        pid: 0,
+        tid: 0,
+        level: 'I',
+        tag: 'System',
+        message,
+        isSystemMarker: true,
+      };
+
+      get().addLogsForDevice(deviceId, [markerEntry]);
+    },
+
     // Actions - Processes
     setProcesses: (processes) => set({ processes }),
     
@@ -281,23 +375,23 @@ export const useLogStore = create<LogState>()(
     
     // Actions - Filter
     setFilter: (newFilter) => {
-      const { logs, filter } = get();
+      const { currentLogs, filter } = get();
       const updatedFilter = { ...filter, ...newFilter };
-      const newFilteredLogs = filterLogs(logs, updatedFilter);
-      const newStats = calculateStats(logs, newFilteredLogs);
-      
+      const newFilteredLogs = filterLogs(currentLogs, updatedFilter);
+      const newStats = calculateStats(currentLogs, newFilteredLogs);
+
       set({
         filter: updatedFilter,
         filteredLogs: newFilteredLogs,
         stats: newStats,
       });
     },
-    
+
     resetFilter: () => {
-      const { logs } = get();
-      const newFilteredLogs = filterLogs(logs, DEFAULT_FILTER);
-      const newStats = calculateStats(logs, newFilteredLogs);
-      
+      const { currentLogs } = get();
+      const newFilteredLogs = filterLogs(currentLogs, DEFAULT_FILTER);
+      const newStats = calculateStats(currentLogs, newFilteredLogs);
+
       set({
         filter: DEFAULT_FILTER,
         filteredLogs: newFilteredLogs,

@@ -7,6 +7,7 @@ export type TimestampFormat = "datetime" | "time" | "epoch";
 // Single log entry structure
 export interface LogEntry {
   id: number;
+  deviceId?: string;  // 新增：设备ID，用于多设备日志分离
   timestamp: string;
   dateTime?: string;  // Full date-time string
   epoch?: number;     // Unix timestamp
@@ -18,6 +19,7 @@ export interface LogEntry {
   packageName?: string;
   processName?: string;
   raw?: string;
+  isSystemMarker?: boolean;  // 新增：标记系统消息（断开/重连）
 }
 
 // Connected Android device
@@ -34,6 +36,14 @@ export interface ProcessInfo {
   pid: number;
   name: string;
   packageName?: string;
+}
+
+// 新增：每个设备的日志集合
+export interface DeviceLogCollection {
+  deviceId: string;
+  deviceName: string;
+  logs: LogEntry[];
+  lastActiveTime: number;
 }
 
 // Filter configuration
