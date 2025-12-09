@@ -101,7 +101,7 @@ function filterLogs(logs: LogEntry[], filter: FilterConfig): LogEntry[] {
   
   return logs.filter((log) => {
     // Use the parsed query matcher
-    if (!matchesQuery(log, parsedQuery)) {
+    if (!matchesQuery(log, parsedQuery, filter.isCaseSensitive)) {
       return false;
     }
     

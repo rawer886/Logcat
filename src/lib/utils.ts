@@ -505,7 +505,8 @@ function matchOrGroup(value: string, group: OrGroup): boolean {
 // Check if log entry matches parsed query
 export function matchesQuery(
   entry: import("../types").LogEntry,
-  query: ParsedQuery
+  query: ParsedQuery,
+  isCaseSensitive: boolean = false
 ): boolean {
   // Level filter (level:INFO means INFO and above)
   if (query.minLevel) {
@@ -593,10 +594,18 @@ export function matchesQuery(
 
   // Text search (searches in tag and message)
   if (query.text) {
-    const searchText = query.text.toLowerCase();
-    const searchTarget = `${entry.tag} ${entry.message}`.toLowerCase();
-    if (!searchTarget.includes(searchText)) {
-      return false;
+    const searchTarget = `${entry.tag} ${entry.message}`;
+    const searchText = query.text;
+
+    // 根据 isCaseSensitive 决定是否区分大小写
+    if (isCaseSensitive) {
+      if (!searchTarget.includes(searchText)) {
+        return false;
+      }
+    } else {
+      if (!searchTarget.toLowerCase().includes(searchText.toLowerCase())) {
+        return false;
+      }
     }
   }
 
