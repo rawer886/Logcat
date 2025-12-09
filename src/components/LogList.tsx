@@ -60,14 +60,31 @@ const ResizableHeader = ({
   useEffect(() => {
     if (!isResizing) return;
 
+    let rafId: number | null = null;
+    let lastDelta = 0;
+
     const handleMouseMove = (e: MouseEvent) => {
       const delta = e.clientX - startXRef.current;
-      const newWidth = Math.max(minWidth, startWidthRef.current + delta);
-      onResize(newWidth - width);
+      lastDelta = delta;
+
+      // 使用 requestAnimationFrame 节流更新，减少重渲染
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          const newWidth = Math.max(minWidth, startWidthRef.current + lastDelta);
+          onResize(newWidth - width);
+          rafId = null;
+        });
+      }
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      // 确保最后一次更新被应用
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        const newWidth = Math.max(minWidth, startWidthRef.current + lastDelta);
+        onResize(newWidth - width);
+      }
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -76,6 +93,9 @@ const ResizableHeader = ({
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, [isResizing, width, onResize, minWidth]);
 
@@ -432,13 +452,41 @@ export function LogList() {
     ]
   );
 
+  // 使用 useRef 跟踪列宽，避免频繁重测量
+  const columnWidthsRef = useRef(columnWidths);
+  const measureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
+    columnWidthsRef.current = columnWidths;
+  }, [columnWidths]);
+
+  useEffect(() => {
+    // 立即测量字体和换行相关的变化
     virtualizer.measure();
   }, [
     virtualizer,
     settings.wrapLines,
     settings.fontSize,
     settings.lineHeight,
+  ]);
+
+  // 延迟测量列宽变化，避免拖动时频繁重测量
+  useEffect(() => {
+    if (measureTimeoutRef.current) {
+      clearTimeout(measureTimeoutRef.current);
+    }
+
+    measureTimeoutRef.current = setTimeout(() => {
+      virtualizer.measure();
+    }, 100); // 100ms 防抖延迟
+
+    return () => {
+      if (measureTimeoutRef.current) {
+        clearTimeout(measureTimeoutRef.current);
+      }
+    };
+  }, [
+    virtualizer,
     columnWidths.timestamp,
     columnWidths.pid,
     columnWidths.packageName,
