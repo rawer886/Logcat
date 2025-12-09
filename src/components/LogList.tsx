@@ -135,6 +135,55 @@ const formatTimestamp = (entry: LogEntry, format: TimestampFormat): string => {
   }
 };
 
+// 自定义比较函数，优化 LogRow 的渲染判断
+function arePropsEqual(
+  prevProps: {
+    entry: LogEntry;
+    prevEntry: LogEntry | null;
+    searchRegex: RegExp | null;
+    settings: any;
+    columnWidths: ColumnWidths;
+  },
+  nextProps: {
+    entry: LogEntry;
+    prevEntry: LogEntry | null;
+    searchRegex: RegExp | null;
+    settings: any;
+    columnWidths: ColumnWidths;
+  }
+): boolean {
+  // Entry 的 ID 相同且其他属性相同
+  if (prevProps.entry.id !== nextProps.entry.id) {
+    return false;
+  }
+
+  // 前一个 entry 的变化（用于判断重复显示）
+  if (prevProps.prevEntry?.id !== nextProps.prevEntry?.id) {
+    return false;
+  }
+
+  // 搜索正则变化
+  if (prevProps.searchRegex?.source !== nextProps.searchRegex?.source ||
+      prevProps.searchRegex?.flags !== nextProps.searchRegex?.flags) {
+    return false;
+  }
+
+  // Settings 对象引用变化（已被 useMemo 优化，只需比较引用）
+  if (prevProps.settings !== nextProps.settings) {
+    return false;
+  }
+
+  // ColumnWidths 浅比较（只比较实际使用的列）
+  const cols: (keyof ColumnWidths)[] = ['timestamp', 'pid', 'packageName', 'processName', 'level', 'tag'];
+  for (const col of cols) {
+    if (prevProps.columnWidths[col] !== nextProps.columnWidths[col]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Memoized log row component
 const LogRow = memo(function LogRow({
   entry,
@@ -297,7 +346,7 @@ const LogRow = memo(function LogRow({
       </div>
     </div>
   );
-});
+}, arePropsEqual);
 
 export function LogList() {
   const { filteredLogs, autoScroll, settings, filter, setAutoScroll } = useLogStore();
