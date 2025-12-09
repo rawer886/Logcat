@@ -371,16 +371,8 @@ export function LogList() {
     }));
   };
 
-  // Create search regex for highlighting
-  const searchRegex = useMemo(
-    () =>
-      createSearchRegex(
-        filter.searchText,
-        filter.isRegex,
-        filter.isCaseSensitive
-      ),
-    [filter.searchText, filter.isRegex, filter.isCaseSensitive]
-  );
+  // Disable search highlighting
+  const searchRegex = null;
 
   // Virtual list configuration with dynamic height support
   const virtualizer = useVirtualizer({
