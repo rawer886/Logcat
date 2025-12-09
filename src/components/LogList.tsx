@@ -258,14 +258,15 @@ const LogRow = memo(function LogRow({
         lineHeight: `${settings.lineHeight}`,
       }}
       className={cn(
-        "flex items-start font-mono hover:bg-surface-elevated/50 transition-colors",
+        "flex font-mono hover:bg-surface-elevated/50 transition-colors",
+        settings.wrapLines ? "items-start" : "items-center",
         getRowClassName(entry.level)
       )}
     >
       {/* Timestamp */}
       {settings.showTimestamp && (
-        <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted whitespace-nowrap overflow-hidden"
+        <div
+          className="flex-shrink-0 px-2 text-text-muted whitespace-nowrap overflow-hidden"
           style={{ width: columnWidths.timestamp }}
         >
           {formatTimestamp(entry, settings.timestampFormat)}
@@ -274,8 +275,8 @@ const LogRow = memo(function LogRow({
 
       {/* PID (with optional TID) */}
       {settings.showPid && (
-        <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted text-right whitespace-nowrap overflow-hidden"
+        <div
+          className="flex-shrink-0 px-2 text-text-muted text-right whitespace-nowrap overflow-hidden"
           style={{ width: columnWidths.pid }}
         >
           {formatPidTid()}
@@ -284,8 +285,8 @@ const LogRow = memo(function LogRow({
 
       {/* Package Name */}
       {settings.showPackageName && (
-        <div 
-          className="flex-shrink-0 px-2 py-1 text-text-secondary whitespace-nowrap overflow-hidden"
+        <div
+          className="flex-shrink-0 px-2 text-text-secondary whitespace-nowrap overflow-hidden"
           style={{ width: columnWidths.packageName }}
           title={entry.packageName}
         >
@@ -295,8 +296,8 @@ const LogRow = memo(function LogRow({
 
       {/* Process Name */}
       {settings.showProcessName && (
-        <div 
-          className="flex-shrink-0 px-2 py-1 text-text-muted whitespace-nowrap overflow-hidden"
+        <div
+          className="flex-shrink-0 px-2 text-text-muted whitespace-nowrap overflow-hidden"
           style={{ width: columnWidths.processName }}
           title={entry.processName}
         >
@@ -307,7 +308,7 @@ const LogRow = memo(function LogRow({
       {/* Level */}
       {settings.showLevel && (
         <div
-          className="flex-shrink-0 px-2 py-1 text-center font-bold whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 text-center font-bold whitespace-nowrap overflow-hidden"
           style={{ color: levelInfo.color, width: columnWidths.level }}
         >
           {entry.level}
@@ -317,10 +318,10 @@ const LogRow = memo(function LogRow({
       {/* Tag */}
       {settings.showTag && (
         <div
-          className="flex-shrink-0 px-2 py-1 whitespace-nowrap overflow-hidden"
-          style={{ 
-            color: isTagRepeated ? "transparent" : levelInfo.color, 
-            width: columnWidths.tag 
+          className="flex-shrink-0 px-2 whitespace-nowrap overflow-hidden"
+          style={{
+            color: isTagRepeated ? "transparent" : levelInfo.color,
+            width: columnWidths.tag
           }}
           title={entry.tag}
         >
@@ -331,12 +332,11 @@ const LogRow = memo(function LogRow({
       {/* Message */}
       <div
         className={cn(
-          "flex-1 min-w-[200px] px-2 py-1 text-text-primary",
+          "flex-1 min-w-[200px] px-2 text-text-primary",
           settings.wrapLines
             ? "whitespace-pre-wrap break-all"
             : "whitespace-pre"
         )}
-        style={{ lineHeight: `${settings.lineHeight}` }}
       >
         {entry.message}
       </div>

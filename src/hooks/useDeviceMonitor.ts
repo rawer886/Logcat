@@ -18,6 +18,7 @@ interface DeviceEvent {
 export function useDeviceMonitor() {
   const {
     selectedDevice,
+    isConnected,
     addDeviceMarker,
     setDevices,
   } = useLogStore();
@@ -32,8 +33,9 @@ export function useDeviceMonitor() {
           if (device) {
             console.log(`设备已连接: ${device.name}`);
 
-            // 如果是之前选中的设备重连
-            if (selectedDevice?.id === device.id) {
+            // 只在设备重新连接时自动启动（即之前已选中且已连接过）
+            // 首次连接由 useAutoSelectDevice 处理
+            if (selectedDevice?.id === device.id && !isConnected) {
               addDeviceMarker(
                 device.id,
                 `设备已重新连接 (${new Date().toLocaleTimeString()})`,
@@ -74,5 +76,5 @@ export function useDeviceMonitor() {
     return () => {
       unlisten.then(fn => fn());
     };
-  }, [selectedDevice, addDeviceMarker, stopLogcat, startLogcat, setDevices]);
+  }, [selectedDevice, isConnected, addDeviceMarker, stopLogcat, startLogcat, setDevices]);
 }
