@@ -6,7 +6,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{interval, Duration};
-use log::{debug, info};
+use log::{debug, error, info};
+use tauri::{AppHandle, Emitter};
 
 use crate::parser::{LogEntry, LogParser};
 
@@ -41,6 +42,15 @@ impl DeviceState {
             _ => DeviceState::NoDevice,
         }
     }
+}
+
+/// Device event types for real-time monitoring
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum DeviceEvent {
+    Connected { device: Device },
+    Disconnected { device_id: String },
+    ListUpdated { devices: Vec<Device> },
 }
 
 /// Process information
@@ -323,6 +333,74 @@ impl AdbManager {
         } else {
             Err("Failed to clear logcat".to_string())
         }
+    }
+
+    /// Start device monitor task to detect device connection/disconnection
+    pub fn start_device_monitor(&self, app_handle: AppHandle) {
+        let adb_path = self.adb_path.clone();
+
+        tauri::async_runtime::spawn(async move {
+            let mut last_devices: HashMap<String, DeviceState> = HashMap::new();
+            let mut interval = interval(Duration::from_secs(2));
+
+            loop {
+                interval.tick().await;
+
+                // Get current device list
+                let manager = AdbManager {
+                    adb_path: adb_path.clone(),
+                };
+                let current_devices = match manager.get_devices().await {
+                    Ok(devices) => devices,
+                    Err(e) => {
+                        error!("Failed to get devices: {}", e);
+                        continue;
+                    }
+                };
+
+                // Build current device state map
+                let current_map: HashMap<String, DeviceState> = current_devices
+                    .iter()
+                    .map(|d| (d.id.clone(), d.state))
+                    .collect();
+
+                // Detect disconnected devices
+                for (old_id, old_state) in &last_devices {
+                    if *old_state == DeviceState::Device {
+                        if !current_map.contains_key(old_id)
+                            || current_map.get(old_id) != Some(&DeviceState::Device)
+                        {
+                            // Device disconnected
+                            info!("Device disconnected: {}", old_id);
+                            let event = DeviceEvent::Disconnected {
+                                device_id: old_id.clone(),
+                            };
+                            let _ = app_handle.emit("device-event", &event);
+                        }
+                    }
+                }
+
+                // Detect newly connected devices
+                for device in &current_devices {
+                    if device.state == DeviceState::Device {
+                        let was_disconnected = !last_devices.contains_key(&device.id)
+                            || last_devices.get(&device.id) != Some(&DeviceState::Device);
+
+                        if was_disconnected {
+                            // Device connected
+                            info!("Device connected: {}", device.id);
+                            let event = DeviceEvent::Connected {
+                                device: device.clone(),
+                            };
+                            let _ = app_handle.emit("device-event", &event);
+                        }
+                    }
+                }
+
+                // Update device list
+                last_devices = current_map;
+            }
+        });
     }
 }
 
