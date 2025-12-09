@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLogStore } from '../stores/logStore';
 import { useLogStream } from './useLogStream';
 
@@ -15,6 +15,7 @@ export function useAutoSelectDevice() {
     importedFileName
   } = useLogStore();
   const { startLogcat, refreshDevices } = useLogStream();
+  const hasAutoSelectedRef = useRef(false);
 
   // Refresh device list on mount
   useEffect(() => {
@@ -23,8 +24,8 @@ export function useAutoSelectDevice() {
 
   // Auto-select device when conditions are met
   useEffect(() => {
-    // Conditions: has devices, not connected, no device selected, no imported file
-    if (devices.length > 0 && !isConnected && !selectedDevice && !importedFileName) {
+    // Conditions: has devices, not connected, no device selected, no imported file, not already auto-selected
+    if (devices.length > 0 && !isConnected && !selectedDevice && !importedFileName && !hasAutoSelectedRef.current) {
       const targetDevice =
         // Priority 1: Select last selected device if still online
         devices.find(d => d.id === lastSelectedDeviceId && d.state === 'device') ||
@@ -33,8 +34,10 @@ export function useAutoSelectDevice() {
 
       if (targetDevice) {
         console.log(`自动选择设备: ${targetDevice.name}`);
+        hasAutoSelectedRef.current = true;
         startLogcat(targetDevice.id).catch(err => {
           console.error('Failed to auto-select device:', err);
+          hasAutoSelectedRef.current = false; // Reset on error
         });
       }
     }

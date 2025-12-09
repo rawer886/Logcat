@@ -73,11 +73,12 @@ export function useLogStream(): UseLogStreamReturn {
           unlistenRef.current = null;
         }
 
-        // Set up listener for log entries
+        // Set up listener for log entries - use addLogsForDevice with deviceId
         unlistenRef.current = await listen<LogEntry[]>(
           "logcat-entries",
           (event) => {
-            addLogs(event.payload);
+            const state = useLogStore.getState();
+            state.addLogsForDevice(deviceId, event.payload);
           }
         );
 
@@ -85,12 +86,9 @@ export function useLogStream(): UseLogStreamReturn {
         await invoke("start_logcat", { deviceId });
         setConnected(true);
 
-        // Update selected device - get fresh device list from store
-        const currentDevices = useLogStore.getState().devices;
-        const device = currentDevices.find((d) => d.id === deviceId);
-        if (device) {
-          selectDevice(device);
-        }
+        // Switch to device - use switchToDevice to load history
+        const state = useLogStore.getState();
+        state.switchToDevice(deviceId);
 
         // Refresh processes
         await refreshProcesses(deviceId);
@@ -100,7 +98,7 @@ export function useLogStream(): UseLogStreamReturn {
         throw error;
       }
     },
-    [addLogs, setConnected, selectDevice, refreshProcesses]
+    [setConnected, refreshProcesses]
   );
 
   // Stop logcat
