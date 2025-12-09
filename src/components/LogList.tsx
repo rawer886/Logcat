@@ -100,24 +100,32 @@ const ResizableHeader = ({
   }, [isResizing, width, onResize, minWidth]);
 
   return (
-    <div className="relative flex-shrink-0 border-r border-border" style={{ width }}>
+    <div className="relative flex-shrink-0 border-r border-border group" style={{ width }}>
       {children}
-      {/* Visible resize handle */}
+      {/* Resize handle with enhanced visibility */}
       <div
         className={cn(
-          "absolute right-0 top-1 bottom-1 w-[3px] cursor-col-resize rounded transition-all",
-          "translate-x-1/2",
-          isResizing 
-            ? "bg-accent w-[4px]" 
-            : isHovering 
-              ? "bg-accent/70" 
-              : "bg-border-strong/50 hover:bg-accent/70"
+          "absolute right-0 top-0 bottom-0 w-[8px] cursor-col-resize flex items-center justify-center",
+          "translate-x-1/2 transition-all duration-150",
+          "hover:bg-accent/10"
         )}
         onMouseDown={handleMouseDown}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         title="拖动调整列宽"
-      />
+      >
+        {/* Visible handle bar */}
+        <div
+          className={cn(
+            "w-[2px] h-full rounded-full transition-all duration-150",
+            isResizing
+              ? "bg-accent w-[3px] shadow-lg"
+              : isHovering
+                ? "bg-accent/80 w-[2.5px]"
+                : "bg-border-strong/60 group-hover:bg-accent/50"
+          )}
+        />
+      </div>
     </div>
   );
 };
