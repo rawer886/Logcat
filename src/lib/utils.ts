@@ -1,6 +1,43 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+// ============================================
+// 正则表达式缓存 - 避免重复编译
+// ============================================
+const regexCache = new Map<string, RegExp>();
+const MAX_CACHE_SIZE = 100; // 限制缓存大小，防止内存泄漏
+
+function getCachedRegex(pattern: string, flags: string): RegExp | null {
+  const cacheKey = `${pattern}:${flags}`;
+
+  // 检查缓存
+  if (regexCache.has(cacheKey)) {
+    return regexCache.get(cacheKey)!;
+  }
+
+  try {
+    const regex = new RegExp(pattern, flags);
+
+    // 如果缓存已满，删除最旧的一个
+    if (regexCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = regexCache.keys().next().value;
+      if (firstKey) {
+        regexCache.delete(firstKey);
+      }
+    }
+
+    regexCache.set(cacheKey, regex);
+    return regex;
+  } catch {
+    return null;
+  }
+}
+
+// 清除正则缓存（用于测试或内存管理）
+export function clearRegexCache() {
+  regexCache.clear();
+}
+
 // Merge Tailwind CSS classes
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -39,21 +76,17 @@ export function escapeRegex(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Create a regex from search text
+// Create a regex from search text (with caching)
 export function createSearchRegex(
   searchText: string,
   isRegex: boolean,
   isCaseSensitive: boolean
 ): RegExp | null {
   if (!searchText) return null;
-  
-  try {
-    const pattern = isRegex ? searchText : escapeRegex(searchText);
-    const flags = isCaseSensitive ? "g" : "gi";
-    return new RegExp(pattern, flags);
-  } catch {
-    return null;
-  }
+
+  const pattern = isRegex ? searchText : escapeRegex(searchText);
+  const flags = isCaseSensitive ? "g" : "gi";
+  return getCachedRegex(pattern, flags);
 }
 
 // Highlight matching text in a string
@@ -422,18 +455,18 @@ function processOtherKeys(parsed: { key: string; value: string; mode: MatchMode;
 function matchCondition(value: string, condition: FilterCondition): boolean {
   const v = value.toLowerCase();
   const c = condition.value.toLowerCase();
-  
+
   let matches = false;
-  
+
   switch (condition.mode) {
     case "exact":
       matches = v === c;
       break;
     case "regex":
-      try {
-        const regex = new RegExp(condition.value, "i");
+      const regex = getCachedRegex(condition.value, "i");
+      if (regex) {
         matches = regex.test(value);
-      } catch {
+      } else {
         matches = false;
       }
       break;
