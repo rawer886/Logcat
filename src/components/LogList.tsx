@@ -349,6 +349,7 @@ export function LogList() {
   const parentRef = useRef<HTMLDivElement>(null);
   const prevLogCountRef = useRef(0);
   const prevAutoScrollRef = useRef(autoScroll);
+  const lastScrollTopRef = useRef(0); // Track last scroll position to detect scroll direction
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
 
   const handleColumnResize = (column: keyof ColumnWidths, delta: number) => {
@@ -380,6 +381,12 @@ export function LogList() {
         align: "end",
         behavior: "auto",
       });
+      // Update lastScrollTopRef after auto-scroll to prevent disabling auto-scroll
+      requestAnimationFrame(() => {
+        if (parentRef.current) {
+          lastScrollTopRef.current = parentRef.current.scrollTop;
+        }
+      });
     }
     prevLogCountRef.current = filteredLogs.length;
   }, [filteredLogs.length, autoScroll, virtualizer]);
@@ -392,7 +399,13 @@ export function LogList() {
     ) {
       virtualizer.scrollToIndex(filteredLogs.length - 1, {
         align: "end",
-        behavior: "smooth",
+        behavior: "auto",
+      });
+      // Update lastScrollTopRef when user manually enables auto-scroll
+      requestAnimationFrame(() => {
+        if (parentRef.current) {
+          lastScrollTopRef.current = parentRef.current.scrollTop;
+        }
       });
     }
     prevAutoScrollRef.current = autoScroll;
@@ -401,14 +414,26 @@ export function LogList() {
   // Handle scroll events from LeftToolbar
   useEffect(() => {
     const handleScrollToTop = () => {
-      virtualizer.scrollToIndex(0, { align: "start", behavior: "smooth" });
+      virtualizer.scrollToIndex(0, {
+        align: "start",
+        behavior: "auto"
+      });
     };
-    
+
     const handleScrollToBottom = () => {
       if (filteredLogs.length > 0) {
-        virtualizer.scrollToIndex(filteredLogs.length - 1, { align: "end", behavior: "smooth" });
+        virtualizer.scrollToIndex(filteredLogs.length - 1, {
+          align: "end",
+          behavior: "auto"
+        });
       }
       setAutoScroll(true);
+      // Update lastScrollTopRef when scrolling to bottom
+      requestAnimationFrame(() => {
+        if (parentRef.current) {
+          lastScrollTopRef.current = parentRef.current.scrollTop;
+        }
+      });
     };
 
     window.addEventListener("logcat:scrollToTop", handleScrollToTop);
@@ -420,10 +445,43 @@ export function LogList() {
     };
   }, [virtualizer, filteredLogs.length, setAutoScroll]);
 
-  // Handle scroll（目前不再自动关闭自动滚动，只保留占位，方便未来扩展）
-  const handleScroll = useCallback(() => {
-    // no-op
-  }, []);
+  // Monitor scroll to disable auto-scroll when user scrolls up
+  useEffect(() => {
+    const element = parentRef.current;
+    if (!element) return;
+
+    const handleScroll = () => {
+      const currentScrollTop = element.scrollTop;
+      const scrollHeight = element.scrollHeight;
+      const clientHeight = element.clientHeight;
+      const lastScrollTop = lastScrollTopRef.current;
+
+      // Get current autoScroll state from store
+      const currentAutoScroll = useLogStore.getState().autoScroll;
+
+      // Only process if auto-scroll is currently enabled
+      if (currentAutoScroll) {
+        // Calculate if user is near the bottom (within 100px)
+        const isNearBottom = scrollHeight - clientHeight - currentScrollTop < 100;
+
+        // Only disable auto-scroll if:
+        // 1. User scrolls UP (not down)
+        // 2. User is NOT near the bottom
+        if (currentScrollTop < lastScrollTop - 5 && !isNearBottom) {
+          // User scrolled up and away from bottom - disable auto-scroll
+          setAutoScroll(false);
+        }
+      }
+
+      lastScrollTopRef.current = currentScrollTop;
+    };
+
+    element.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      element.removeEventListener('scroll', handleScroll);
+    };
+  }, [setAutoScroll]);
 
   const rowSettings = useMemo(
     () => ({
@@ -532,10 +590,9 @@ export function LogList() {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
       {/* Scrollable container for both header and content */}
-      <div 
+      <div
         ref={parentRef}
         className="flex-1 overflow-auto min-h-0"
-        onScroll={handleScroll}
       >
         {/* Inner container with min-width for horizontal scroll */}
         <div style={{ minWidth: settings.wrapLines ? undefined : minContentWidth }}>
