@@ -4,10 +4,10 @@
       "Bash(grep:*)",
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "Bash(git add:*)",
-      "Bash(git restore:*)",
-      "Bash(git commit:*)",
-      "Bash(npm run tauri:*)"
+      "Bash(git :*)",
+      "Bash(npm run tauri:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)"
     ]
   }
 }
