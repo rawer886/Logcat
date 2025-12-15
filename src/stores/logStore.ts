@@ -182,10 +182,10 @@ export const useLogStore = create<LogState>()(
     },
     
     addLogs: (entries) => {
-      const { logs, filteredLogs, filter, settings, isPaused, stats } = get();
+      const { currentLogs, filteredLogs, filter, settings, isPaused, stats } = get();
       if (isPaused || entries.length === 0) return;
-      
-      let mergedLogs = [...logs, ...entries];
+
+      let mergedLogs = [...currentLogs, ...entries];
       let removedLogs: LogEntry[] = [];
       
       if (mergedLogs.length > settings.maxLogLines) {
@@ -228,7 +228,7 @@ export const useLogStore = create<LogState>()(
       };
       
       set({
-        logs: mergedLogs,
+        currentLogs: mergedLogs,
         filteredLogs: newFilteredLogs,
         stats: newStats,
       });
