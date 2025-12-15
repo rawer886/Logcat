@@ -142,7 +142,3 @@ Please read [Contributing Guide](CONTRIBUTING.md) first.
   If you find this helpful, please give it a ⭐️!
 </p>
 
-<p align="center">
-  <sub>Built with <a href="https://cursor.sh/">Cursor</a> AI</sub>
-</p>
-

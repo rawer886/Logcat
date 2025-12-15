@@ -16,7 +16,7 @@
 
 ### 1.2 推荐 IDE 配置
 
-**VS Code / Cursor 插件：**
+**推荐 IDE 插件：**
 - rust-analyzer
 - Tailwind CSS IntelliSense
 - ESLint

@@ -12,6 +12,11 @@ target/
 *.swo
 .DS_Store
 
+# AI Tools
+.claude/
+.cursor/
+.cursorrules
+
 # Logs
 *.log
 npm-debug.log*
@@ -26,4 +31,7 @@ src-tauri/target/
 
 # OS
 Thumbs.db
+
+# Archives
+*.zip
 

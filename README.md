@@ -141,7 +141,3 @@ is:crash                  # 崩溃日志
 <p align="center">
   如果这个项目对你有帮助，请给一个 ⭐️ 支持一下！
 </p>
-
-<p align="center">
-  <sub>Built with <a href="https://cursor.sh/">Cursor</a> AI</sub>
-</p>
