@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Branch Strategy
+
+- **main** - 受保护的主分支，仅用于正式发布
+- **develop** - 开发分支（当前工作分支）
+  - 所有日常开发都在此分支进行
+  - 通过 Pull Request 合并到 main 分支
+  - 发版时创建 tag 并合并到 main
+
+**重要**: 始终在 `develop` 分支上工作，不要直接推送到 `main` 分支。
+
 ## Project Overview
 
 Logcat is a high-performance cross-platform Android Logcat viewer built with Tauri 2.0, Rust, and React. It's designed as a lightweight alternative to Android Studio's Logcat with ~10MB install size and support for millions of log entries through virtual scrolling.
