@@ -142,6 +142,21 @@ body {
   color: white;
 }
 
+/* Log list selection - use custom background instead of browser default */
+.log-list-container ::selection {
+  background-color: transparent;
+  color: inherit;
+}
+
+/* Row selection highlight - continuous background across rows */
+.row-selected {
+  background-color: rgba(25, 118, 210, 0.2) !important;
+}
+
+.dark .row-selected {
+  background-color: rgba(53, 116, 240, 0.25) !important;
+}
+
 
 /* Highlight animation for search matches */
 .highlight-match {
