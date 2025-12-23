@@ -27,7 +27,7 @@ const DEFAULT_WIDTHS: ColumnWidths = {
   pid: 90,
   packageName: 180,
   processName: 120,
-  level: 60,
+  level: 45,
   tag: 150,
 };
 
@@ -37,7 +37,7 @@ const MIN_WIDTHS: ColumnWidths = {
   pid: 80,        // "PID-TID"
   packageName: 90, // "PACKAGE"
   processName: 85, // "PROCESS"
-  level: 60,      // "LEVEL"
+  level: 45,      // "LEVEL"
   tag: 55,        // "TAG"
 };
 
@@ -139,6 +139,26 @@ const ResizableHeader = ({
   );
 };
 
+// Tag color count
+const TAG_COLOR_COUNT = 15;
+
+// Simple hash function for tag string
+const hashTag = (tag: string): number => {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    const char = tag.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % TAG_COLOR_COUNT;
+};
+
+// Get CSS variable for tag color
+const getTagColor = (tag: string): string => {
+  const colorIndex = hashTag(tag);
+  return `var(--tag-color-${colorIndex})`;
+};
+
 // Format timestamp based on settings
 const formatTimestamp = (entry: LogEntry, format: TimestampFormat): string => {
   switch (format) {
@@ -235,17 +255,9 @@ const LogRow = memo(function LogRow({
   const isPackageNameRepeated = type === "main" && settings.hideRepeatedPackageName && prevEntry && prevEntry.packageName === entry.packageName;
   const isProcessNameRepeated = type === "main" && settings.hideRepeatedProcessName && prevEntry && prevEntry.processName === entry.processName;
 
-  const getRowClassName = (level: LogLevel) => {
-    switch (level) {
-      case "W":
-        return "log-row-warn";
-      case "E":
-        return "log-row-error";
-      case "A":
-        return "log-row-assert";
-      default:
-        return "";
-    }
+  // Row background color removed - only Level badge has background now
+  const getRowClassName = (_level: LogLevel) => {
+    return "";
   };
 
   // Format PID/TID display
@@ -262,7 +274,7 @@ const LogRow = memo(function LogRow({
       <div
         style={{ fontSize: `${settings.fontSize}px` }}
         className={cn(
-          "flex font-mono hover:bg-surface-elevated/50 transition-colors items-center",
+          "flex h-full font-mono hover:bg-surface-elevated/50 transition-colors items-center",
           getRowClassName(entry.level)
         )}
       >
@@ -270,8 +282,8 @@ const LogRow = memo(function LogRow({
         <div className="flex-shrink-0" style={{ width: metaWidth }} />
         {/* 续行消息 */}
         <div
-          style={{ lineHeight: `${settings.lineHeight}` }}
-          className="flex-1 min-w-[200px] px-2 text-text-primary whitespace-pre overflow-hidden"
+          style={{ lineHeight: `${settings.lineHeight}`, color: levelInfo.color }}
+          className="flex-1 min-w-[200px] px-2 whitespace-pre overflow-hidden"
         >
           {messageSlice}
         </div>
@@ -284,7 +296,7 @@ const LogRow = memo(function LogRow({
     <div
       style={{ fontSize: `${settings.fontSize}px` }}
       className={cn(
-        "flex font-mono hover:bg-surface-elevated/50 transition-colors items-center",
+        "flex h-full font-mono hover:bg-surface-elevated/50 transition-colors items-center",
         getRowClassName(entry.level)
       )}
     >
@@ -305,6 +317,20 @@ const LogRow = memo(function LogRow({
           style={{ width: columnWidths.pid }}
         >
           {formatPidTid()}
+        </div>
+      )}
+
+      {/* Tag - moved after PID */}
+      {settings.showTag && (
+        <div
+          className="flex-shrink-0 px-2 overflow-hidden whitespace-nowrap"
+          style={{
+            color: isTagRepeated ? "transparent" : getTagColor(entry.tag),
+            width: columnWidths.tag,
+          }}
+          title={entry.tag}
+        >
+          {isTagRepeated ? "" : entry.tag}
         </div>
       )}
 
@@ -333,31 +359,22 @@ const LogRow = memo(function LogRow({
       {/* Level */}
       {settings.showLevel && (
         <div
-          className="flex-shrink-0 px-2 text-center font-bold overflow-hidden whitespace-nowrap"
-          style={{ color: levelInfo.color, width: columnWidths.level }}
+          className="flex-shrink-0 h-full px-2 flex items-center justify-center overflow-hidden whitespace-nowrap"
+          style={{ width: columnWidths.level }}
         >
-          {entry.level}
-        </div>
-      )}
-
-      {/* Tag */}
-      {settings.showTag && (
-        <div
-          className="flex-shrink-0 px-2 overflow-hidden whitespace-nowrap"
-          style={{
-            color: isTagRepeated ? "transparent" : levelInfo.color,
-            width: columnWidths.tag,
-          }}
-          title={entry.tag}
-        >
-          {isTagRepeated ? "" : entry.tag}
+          <span
+            className="h-full flex items-center px-1.5 text-xs font-bold"
+            style={{ color: levelInfo.color, backgroundColor: levelInfo.bgColor }}
+          >
+            {entry.level}
+          </span>
         </div>
       )}
 
       {/* Message */}
       <div
-        style={{ lineHeight: `${settings.lineHeight}` }}
-        className="flex-1 min-w-[200px] px-2 text-text-primary whitespace-pre overflow-hidden"
+        style={{ lineHeight: `${settings.lineHeight}`, color: levelInfo.color }}
+        className="flex-1 min-w-[200px] px-2 whitespace-pre overflow-hidden"
       >
         {messageSlice}
       </div>
@@ -398,24 +415,24 @@ export function LogList() {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // 计算元数据列的总宽度
+  // 计算元数据列的总宽度（顺序：Time, PID, Tag, Package, Process, Level）
   const metaWidth = useMemo(() => {
     let width = 0;
     if (settings.showTimestamp) width += columnWidths.timestamp;
     if (settings.showPid) width += columnWidths.pid;
+    if (settings.showTag) width += columnWidths.tag;
     if (settings.showPackageName) width += columnWidths.packageName;
     if (settings.showProcessName) width += columnWidths.processName;
     if (settings.showLevel) width += columnWidths.level;
-    if (settings.showTag) width += columnWidths.tag;
     return width;
   }, [
     columnWidths,
     settings.showTimestamp,
     settings.showPid,
+    settings.showTag,
     settings.showPackageName,
     settings.showProcessName,
     settings.showLevel,
-    settings.showTag,
   ]);
 
   // 计算消息列可用宽度
@@ -728,6 +745,15 @@ export function LogList() {
                 </div>
               </ResizableHeader>
             )}
+            {settings.showTag && (
+              <ResizableHeader
+                width={columnWidths.tag}
+                onResize={(delta) => handleColumnResize("tag", delta)}
+                minWidth={MIN_WIDTHS.tag}
+              >
+                <div className="px-2 py-2 text-text-secondary whitespace-nowrap overflow-hidden">TAG</div>
+              </ResizableHeader>
+            )}
             {settings.showPackageName && (
               <ResizableHeader
                 width={columnWidths.packageName}
@@ -753,15 +779,6 @@ export function LogList() {
                 minWidth={MIN_WIDTHS.level}
               >
                 <div className="px-2 py-2 text-text-secondary text-center whitespace-nowrap overflow-hidden">LEVEL</div>
-              </ResizableHeader>
-            )}
-            {settings.showTag && (
-              <ResizableHeader
-                width={columnWidths.tag}
-                onResize={(delta) => handleColumnResize("tag", delta)}
-                minWidth={MIN_WIDTHS.tag}
-              >
-                <div className="px-2 py-2 text-text-secondary whitespace-nowrap overflow-hidden">TAG</div>
               </ResizableHeader>
             )}
             <div className="flex-1 min-w-[200px] px-2 py-2 text-text-secondary whitespace-nowrap">MESSAGE</div>

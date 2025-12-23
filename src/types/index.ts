@@ -196,7 +196,7 @@ export const DEFAULT_FILTER: FilterConfig = {
 
 // Default application settings
 export const DEFAULT_SETTINGS: AppSettings = {
-  theme: "dark",
+  theme: "system",
   fontSize: 12,
   lineHeight: 1.5,
   maxLogLines: 100000,
@@ -221,9 +221,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 // Log level display info - uses CSS variables for theme support
 export const LOG_LEVEL_INFO: Record<LogLevel, { label: string; color: string; bgColor: string }> = {
-  V: { label: "Verbose", color: "var(--log-verbose)", bgColor: "transparent" },
-  D: { label: "Debug", color: "var(--log-debug)", bgColor: "transparent" },
-  I: { label: "Info", color: "var(--log-info)", bgColor: "transparent" },
+  V: { label: "Verbose", color: "var(--log-verbose)", bgColor: "var(--log-verbose-bg)" },
+  D: { label: "Debug", color: "var(--log-debug)", bgColor: "var(--log-debug-bg)" },
+  I: { label: "Info", color: "var(--log-info)", bgColor: "var(--log-info-bg)" },
   W: { label: "Warn", color: "var(--log-warn)", bgColor: "var(--log-warn-bg)" },
   E: { label: "Error", color: "var(--log-error)", bgColor: "var(--log-error-bg)" },
   A: { label: "Assert", color: "var(--log-assert)", bgColor: "var(--log-assert-bg)" },

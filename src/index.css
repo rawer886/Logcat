@@ -9,9 +9,9 @@
   --surface-elevated: #ffffff;
   --border: #e0e0e0;
   --border-strong: #bdbdbd;
-  --text-primary: #212121;
-  --text-secondary: #616161;
-  --text-muted: #9e9e9e;
+  --text-primary: #000000;
+  --text-secondary: #000000;
+  --text-muted: #000000;
   --accent: #1976d2;
   --accent-hover: #1565c0;
 
@@ -23,37 +23,77 @@
   --log-error: #d32f2f;
   --log-assert: #7b1fa2;
 
-  /* Log level backgrounds - Light theme */
-  --log-warn-bg: rgba(255, 152, 0, 0.12);
-  --log-error-bg: rgba(211, 47, 47, 0.12);
-  --log-assert-bg: rgba(123, 31, 162, 0.12);
+  /* Log level badge backgrounds - Light theme */
+  --log-verbose-bg: #f5f5f5;
+  --log-debug-bg: #e3f2fd;
+  --log-info-bg: #e8f5e9;
+  --log-warn-bg: #fff3e0;
+  --log-error-bg: #ffebee;
+  --log-assert-bg: #f3e5f5;
+
+  /* Tag colors - Light theme (15 soft colors for different tags) */
+  --tag-color-0: #5e35b1;
+  --tag-color-1: #1565c0;
+  --tag-color-2: #0277bd;
+  --tag-color-3: #00838f;
+  --tag-color-4: #00695c;
+  --tag-color-5: #2e7d32;
+  --tag-color-6: #558b2f;
+  --tag-color-7: #827717;
+  --tag-color-8: #6d4c41;
+  --tag-color-9: #546e7a;
+  --tag-color-10: #37474f;
+  --tag-color-11: #4527a0;
+  --tag-color-12: #283593;
+  --tag-color-13: #1a237e;
+  --tag-color-14: #455a64;
 }
 
 .dark {
-  /* Dark theme - inspired by Android Studio Darcula */
-  --surface: #2b2b2b;
-  --surface-secondary: #313335;
-  --surface-elevated: #3c3f41;
-  --border: #515151;
-  --border-strong: #5e6060;
-  --text-primary: #bababa;
-  --text-secondary: #a0a0a0;
-  --text-muted: #787878;
-  --accent: #3592c4;
-  --accent-hover: #4eabe0;
+  /* Dark theme - Android Studio Default Dark */
+  --surface: #1e1f22;
+  --surface-secondary: #2b2d30;
+  --surface-elevated: #393b40;
+  --border: #43454a;
+  --border-strong: #5a5d63;
+  --text-primary: #ffffff;
+  --text-secondary: #ffffff;
+  --text-muted: #ffffff;
+  --accent: #3574f0;
+  --accent-hover: #4a8af4;
 
-  /* Log level colors - Dark theme */
+  /* Log level colors - Android Studio Default Dark */
   --log-verbose: #bbbbbb;
-  --log-debug: #6897bb;
-  --log-info: #6a8759;
-  --log-warn: #bbb529;
-  --log-error: #ff6b68;
-  --log-assert: #9876aa;
+  --log-debug: #59a8de;
+  --log-info: #59a869;
+  --log-warn: #c9a835;
+  --log-error: #f75464;
+  --log-assert: #c77dbb;
 
-  /* Log level backgrounds - Dark theme */
-  --log-warn-bg: rgba(187, 181, 41, 0.15);
-  --log-error-bg: rgba(255, 107, 104, 0.18);
-  --log-assert-bg: rgba(152, 118, 170, 0.15);
+  /* Log level badge backgrounds - Dark theme */
+  --log-verbose-bg: rgba(187, 187, 187, 0.12);
+  --log-debug-bg: rgba(89, 168, 222, 0.15);
+  --log-info-bg: rgba(89, 168, 105, 0.15);
+  --log-warn-bg: rgba(201, 168, 53, 0.15);
+  --log-error-bg: rgba(247, 84, 100, 0.15);
+  --log-assert-bg: rgba(199, 125, 187, 0.15);
+
+  /* Tag colors - Dark theme (vibrant colors) */
+  --tag-color-0: #c77dbb;
+  --tag-color-1: #6aab73;
+  --tag-color-2: #59a8de;
+  --tag-color-3: #cf8e6d;
+  --tag-color-4: #c9a835;
+  --tag-color-5: #7ec4cf;
+  --tag-color-6: #e8bf6a;
+  --tag-color-7: #9da0a8;
+  --tag-color-8: #5fb3b3;
+  --tag-color-9: #6c95eb;
+  --tag-color-10: #b89be5;
+  --tag-color-11: #73c991;
+  --tag-color-12: #e5c07b;
+  --tag-color-13: #d19a66;
+  --tag-color-14: #abb2bf;
 }
 
 * {
@@ -102,18 +142,6 @@ body {
   color: white;
 }
 
-/* Log level row backgrounds - using CSS variables */
-.log-row-warn {
-  background-color: var(--log-warn-bg);
-}
-
-.log-row-error {
-  background-color: var(--log-error-bg);
-}
-
-.log-row-assert {
-  background-color: var(--log-assert-bg);
-}
 
 /* Highlight animation for search matches */
 .highlight-match {

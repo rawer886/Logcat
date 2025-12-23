@@ -344,7 +344,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             <button
               onClick={() => {
                 updateSettings({
-                  theme: "dark",
+                  theme: "system",
                   fontSize: 12,
                   lineHeight: 1.5,
                   showTimestamp: true,
