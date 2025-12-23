@@ -209,66 +209,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             )}
           </div>
 
-          {/* Package/Process Name Settings */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-text-primary">
-              <Monitor className="w-4 h-4" />
-              <span className="font-medium">包名 / 进程名</span>
-            </div>
-
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm text-text-secondary">显示包名</span>
-              <input
-                type="checkbox"
-                checked={settings.showPackageName}
-                onChange={(e) =>
-                  updateSettings({ showPackageName: e.target.checked })
-                }
-                className="w-4 h-4 accent-accent cursor-pointer"
-              />
-            </label>
-
-            {settings.showPackageName && (
-              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
-                <span className="text-sm text-text-secondary">隐藏重复的包名</span>
-                <input
-                  type="checkbox"
-                  checked={settings.hideRepeatedPackageName}
-                  onChange={(e) =>
-                    updateSettings({ hideRepeatedPackageName: e.target.checked })
-                  }
-                  className="w-4 h-4 accent-accent cursor-pointer"
-                />
-              </label>
-            )}
-
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm text-text-secondary">显示进程名</span>
-              <input
-                type="checkbox"
-                checked={settings.showProcessName}
-                onChange={(e) =>
-                  updateSettings({ showProcessName: e.target.checked })
-                }
-                className="w-4 h-4 accent-accent cursor-pointer"
-              />
-            </label>
-
-            {settings.showProcessName && (
-              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
-                <span className="text-sm text-text-secondary">隐藏重复的进程名</span>
-                <input
-                  type="checkbox"
-                  checked={settings.hideRepeatedProcessName}
-                  onChange={(e) =>
-                    updateSettings({ hideRepeatedProcessName: e.target.checked })
-                  }
-                  className="w-4 h-4 accent-accent cursor-pointer"
-                />
-              </label>
-            )}
-          </div>
-
           {/* TAG Settings */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-text-primary">
@@ -289,17 +229,130 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </label>
 
             {settings.showTag && (
-              <label className="flex items-center justify-between cursor-pointer pl-4 border-l-2 border-border">
-                <span className="text-sm text-text-secondary">隐藏重复的 TAG</span>
-                <input
-                  type="checkbox"
-                  checked={settings.hideRepeatedTags}
-                  onChange={(e) =>
-                    updateSettings({ hideRepeatedTags: e.target.checked })
-                  }
-                  className="w-4 h-4 accent-accent cursor-pointer"
-                />
-              </label>
+              <div className="space-y-3 pl-4 border-l-2 border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-text-secondary">列宽（字符数）</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={settings.tagColumnWidth}
+                    onChange={(e) =>
+                      updateSettings({ tagColumnWidth: Math.max(10, Math.min(100, parseInt(e.target.value) || 23)) })
+                    }
+                    className="w-16 px-2 py-1 text-sm text-center bg-surface-secondary border border-border rounded text-text-primary focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-text-secondary">展示重复的 TAG</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.showRepeatedTags}
+                    onChange={(e) =>
+                      updateSettings({ showRepeatedTags: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-accent cursor-pointer"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Package Name Settings */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Monitor className="w-4 h-4" />
+              <span className="font-medium">包名</span>
+            </div>
+
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-text-secondary">显示包名</span>
+              <input
+                type="checkbox"
+                checked={settings.showPackageName}
+                onChange={(e) =>
+                  updateSettings({ showPackageName: e.target.checked })
+                }
+                className="w-4 h-4 accent-accent cursor-pointer"
+              />
+            </label>
+
+            {settings.showPackageName && (
+              <div className="space-y-3 pl-4 border-l-2 border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-text-secondary">列宽（字符数）</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={settings.packageColumnWidth}
+                    onChange={(e) =>
+                      updateSettings({ packageColumnWidth: Math.max(10, Math.min(100, parseInt(e.target.value) || 35)) })
+                    }
+                    className="w-16 px-2 py-1 text-sm text-center bg-surface-secondary border border-border rounded text-text-primary focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-text-secondary">展示重复的包名</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.showRepeatedPackageName}
+                    onChange={(e) =>
+                      updateSettings({ showRepeatedPackageName: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-accent cursor-pointer"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Process Name Settings */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Monitor className="w-4 h-4" />
+              <span className="font-medium">进程名</span>
+            </div>
+
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-text-secondary">显示进程名</span>
+              <input
+                type="checkbox"
+                checked={settings.showProcessName}
+                onChange={(e) =>
+                  updateSettings({ showProcessName: e.target.checked })
+                }
+                className="w-4 h-4 accent-accent cursor-pointer"
+              />
+            </label>
+
+            {settings.showProcessName && (
+              <div className="space-y-3 pl-4 border-l-2 border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-text-secondary">列宽（字符数）</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={settings.processColumnWidth}
+                    onChange={(e) =>
+                      updateSettings({ processColumnWidth: Math.max(10, Math.min(100, parseInt(e.target.value) || 35)) })
+                    }
+                    className="w-16 px-2 py-1 text-sm text-center bg-surface-secondary border border-border rounded text-text-primary focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-text-secondary">展示重复的进程名</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.showRepeatedProcessName}
+                    onChange={(e) =>
+                      updateSettings({ showRepeatedProcessName: e.target.checked })
+                    }
+                    className="w-4 h-4 accent-accent cursor-pointer"
+                  />
+                </label>
+              </div>
             )}
           </div>
 
@@ -348,17 +401,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   fontSize: 12,
                   lineHeight: 1.5,
                   showTimestamp: true,
-                  timestampFormat: "time",
+                  timestampFormat: "datetime",
                   showPid: true,
-                  showTid: false,
+                  showTid: true,
                   showPackageName: true,
                   showProcessName: false,
-                  hideRepeatedPackageName: false,
-                  hideRepeatedProcessName: false,
+                  showRepeatedPackageName: true,
+                  showRepeatedProcessName: true,
                   showLevel: true,
                   showTag: true,
-                  hideRepeatedTags: false,
+                  showRepeatedTags: true,
                   maxLogLines: 100000,
+                  tagColumnWidth: 23,
+                  packageColumnWidth: 35,
+                  processColumnWidth: 35,
                 });
               }}
               className="w-full px-4 py-2 text-sm text-text-secondary hover:text-text-primary bg-surface-secondary hover:bg-surface rounded-md transition-colors"

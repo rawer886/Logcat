@@ -91,13 +91,17 @@ export interface AppSettings {
   // Package/Process name settings
   showPackageName: boolean;
   showProcessName: boolean;
-  hideRepeatedPackageName: boolean;
-  hideRepeatedProcessName: boolean;
+  showRepeatedPackageName: boolean;
+  showRepeatedProcessName: boolean;
   // Other columns
   showLevel: boolean;
   showTag: boolean;
-  hideRepeatedTags: boolean;  // Hide repeated TAG values
+  showRepeatedTags: boolean;  // Show repeated TAG values
   wrapLines: boolean;
+  // Column width settings (in characters)
+  tagColumnWidth: number;
+  packageColumnWidth: number;
+  processColumnWidth: number;
 }
 
 // Log statistics
@@ -201,22 +205,26 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lineHeight: 1.5,
   maxLogLines: 100000,
   autoScroll: true,
-  // Timestamp
+  // Timestamp - 默认显示日期+时间
   showTimestamp: true,
-  timestampFormat: "time",
-  // Process
+  timestampFormat: "datetime",
+  // Process - 默认显示 PID 和 TID
   showPid: true,
-  showTid: false,  // TID hidden by default
-  // Package/Process name
+  showTid: true,
+  // Package/Process name - 包名默认显示，进程名默认不显示
   showPackageName: true,
   showProcessName: false,
-  hideRepeatedPackageName: false,
-  hideRepeatedProcessName: false,
-  // Other columns
+  showRepeatedPackageName: true,
+  showRepeatedProcessName: true,
+  // Other columns - TAG 和 Level 默认显示
   showLevel: true,
   showTag: true,
-  hideRepeatedTags: false,
+  showRepeatedTags: true,
   wrapLines: false,
+  // Column widths (in characters) - matching Android Studio defaults
+  tagColumnWidth: 23,
+  packageColumnWidth: 35,
+  processColumnWidth: 35,
 };
 
 // Log level display info - uses CSS variables for theme support

@@ -12,15 +12,26 @@ interface DisplayRow {
 }
 
 // 固定列宽（字符数）- 用于对齐
-const COL_CHARS = {
+const FIXED_COL_CHARS = {
   timestamp: 12,      // "HH:mm:ss.SSS"
   datetime: 23,       // "YYYY-MM-DD HH:mm:ss.SSS"
   pid: 5,             // "12345"
   pidTid: 11,         // "12345-12345"
-  tag: 25,            // Tag 名称
-  packageName: 35,    // 包名
-  processName: 20,    // 进程名
   level: 1,           // "D"
+};
+
+// 中间省略截断函数：如果字符串超过 maxLen，在中间用 '...' 替代
+// 例如：truncateMiddle("ControlCenterHeaderExpandController", 25) => "ControlCente...dController"
+const truncateMiddle = (str: string, maxLen: number): string => {
+  if (!str || str.length <= maxLen) return str;
+  if (maxLen < 5) return str.substring(0, maxLen);
+
+  const ellipsis = '...';
+  const charsToShow = maxLen - ellipsis.length;
+  const frontChars = Math.ceil(charsToShow / 2);
+  const backChars = Math.floor(charsToShow / 2);
+
+  return str.substring(0, frontChars) + ellipsis + str.substring(str.length - backChars);
 };
 
 // Tag color count
@@ -76,14 +87,18 @@ interface RowSettings {
   showTid: boolean;
   showPackageName: boolean;
   showProcessName: boolean;
-  hideRepeatedPackageName: boolean;
-  hideRepeatedProcessName: boolean;
+  showRepeatedPackageName: boolean;
+  showRepeatedProcessName: boolean;
   showLevel: boolean;
   showTag: boolean;
-  hideRepeatedTags: boolean;
+  showRepeatedTags: boolean;
   fontSize: number;
   lineHeight: number;
   wrapLines: boolean;
+  // Column widths (in characters)
+  tagColumnWidth: number;
+  packageColumnWidth: number;
+  processColumnWidth: number;
 }
 
 // 自定义比较函数，优化 LogRow 的渲染判断
@@ -127,23 +142,24 @@ const LogRow = memo(function LogRow({
   const levelInfo = LOG_LEVEL_INFO[entry.level];
 
   // Check if values are repeated (only for main rows)
-  const isTagRepeated = type === "main" && settings.hideRepeatedTags && prevEntry && prevEntry.tag === entry.tag;
-  const isPackageNameRepeated = type === "main" && settings.hideRepeatedPackageName && prevEntry && prevEntry.packageName === entry.packageName;
-  const isProcessNameRepeated = type === "main" && settings.hideRepeatedProcessName && prevEntry && prevEntry.processName === entry.processName;
+  // 当 showRepeated 为 false 时，隐藏重复的值
+  const isTagRepeated = type === "main" && !settings.showRepeatedTags && prevEntry && prevEntry.tag === entry.tag;
+  const isPackageNameRepeated = type === "main" && !settings.showRepeatedPackageName && prevEntry && prevEntry.packageName === entry.packageName;
+  const isProcessNameRepeated = type === "main" && !settings.showRepeatedProcessName && prevEntry && prevEntry.processName === entry.processName;
 
   // 计算元数据列的总字符宽度（用于续行的空白占位）
   const getMetaCharWidth = () => {
     let width = 0;
     if (settings.showTimestamp) {
-      width += (settings.timestampFormat === "datetime" ? COL_CHARS.datetime : COL_CHARS.timestamp) + 2;
+      width += (settings.timestampFormat === "datetime" ? FIXED_COL_CHARS.datetime : FIXED_COL_CHARS.timestamp) + 2;
     }
     if (settings.showPid) {
-      width += (settings.showTid ? COL_CHARS.pidTid : COL_CHARS.pid) + 2;
+      width += (settings.showTid ? FIXED_COL_CHARS.pidTid : FIXED_COL_CHARS.pid) + 2;
     }
-    if (settings.showTag) width += COL_CHARS.tag + 2;
-    if (settings.showPackageName) width += COL_CHARS.packageName + 2;
-    if (settings.showProcessName) width += COL_CHARS.processName + 2;
-    if (settings.showLevel) width += COL_CHARS.level + 2;
+    if (settings.showTag) width += settings.tagColumnWidth + 2;
+    if (settings.showPackageName) width += settings.packageColumnWidth + 2;
+    if (settings.showProcessName) width += settings.processColumnWidth + 2;
+    if (settings.showLevel) width += FIXED_COL_CHARS.level + 2;
     return width;
   };
 
@@ -170,8 +186,8 @@ const LogRow = memo(function LogRow({
   }
 
   // 主行：构建完整的一行内容
-  const timestampWidth = settings.timestampFormat === "datetime" ? COL_CHARS.datetime : COL_CHARS.timestamp;
-  const pidWidth = settings.showTid ? COL_CHARS.pidTid : COL_CHARS.pid;
+  const timestampWidth = settings.timestampFormat === "datetime" ? FIXED_COL_CHARS.datetime : FIXED_COL_CHARS.timestamp;
+  const pidWidth = settings.showTid ? FIXED_COL_CHARS.pidTid : FIXED_COL_CHARS.pid;
 
   return (
     <div
@@ -206,7 +222,7 @@ const LogRow = memo(function LogRow({
             style={{ color: isTagRepeated ? 'transparent' : getTagColor(entry.tag) }}
             title={entry.tag}
           >
-            {padEnd(isTagRepeated ? '' : entry.tag, COL_CHARS.tag)}
+            {padEnd(isTagRepeated ? '' : truncateMiddle(entry.tag, settings.tagColumnWidth), settings.tagColumnWidth)}
           </span>
           <span className="text-text-muted">  </span>
         </>
@@ -216,7 +232,7 @@ const LogRow = memo(function LogRow({
       {settings.showPackageName && (
         <>
           <span data-col="package" className="text-text-secondary" title={entry.packageName}>
-            {padEnd(isPackageNameRepeated ? '' : (entry.packageName || '-'), COL_CHARS.packageName)}
+            {padEnd(isPackageNameRepeated ? '' : truncateMiddle(entry.packageName || '-', settings.packageColumnWidth), settings.packageColumnWidth)}
           </span>
           <span className="text-text-muted">  </span>
         </>
@@ -226,7 +242,7 @@ const LogRow = memo(function LogRow({
       {settings.showProcessName && (
         <>
           <span data-col="process" className="text-text-muted" title={entry.processName}>
-            {padEnd(isProcessNameRepeated ? '' : (entry.processName || '-'), COL_CHARS.processName)}
+            {padEnd(isProcessNameRepeated ? '' : truncateMiddle(entry.processName || '-', settings.processColumnWidth), settings.processColumnWidth)}
           </span>
           <span className="text-text-muted">  </span>
         </>
@@ -466,14 +482,17 @@ export function LogList() {
       showTid: settings.showTid,
       showPackageName: settings.showPackageName,
       showProcessName: settings.showProcessName,
-      hideRepeatedPackageName: settings.hideRepeatedPackageName,
-      hideRepeatedProcessName: settings.hideRepeatedProcessName,
+      showRepeatedPackageName: settings.showRepeatedPackageName,
+      showRepeatedProcessName: settings.showRepeatedProcessName,
       showLevel: settings.showLevel,
       showTag: settings.showTag,
-      hideRepeatedTags: settings.hideRepeatedTags,
+      showRepeatedTags: settings.showRepeatedTags,
       fontSize: settings.fontSize,
       lineHeight: settings.lineHeight,
       wrapLines: settings.wrapLines,
+      tagColumnWidth: settings.tagColumnWidth,
+      packageColumnWidth: settings.packageColumnWidth,
+      processColumnWidth: settings.processColumnWidth,
     }),
     [
       settings.showTimestamp,
@@ -482,14 +501,17 @@ export function LogList() {
       settings.showTid,
       settings.showPackageName,
       settings.showProcessName,
-      settings.hideRepeatedPackageName,
-      settings.hideRepeatedProcessName,
+      settings.showRepeatedPackageName,
+      settings.showRepeatedProcessName,
       settings.showLevel,
       settings.showTag,
-      settings.hideRepeatedTags,
+      settings.showRepeatedTags,
       settings.fontSize,
       settings.lineHeight,
       settings.wrapLines,
+      settings.tagColumnWidth,
+      settings.packageColumnWidth,
+      settings.processColumnWidth,
     ]
   );
 
@@ -640,8 +662,8 @@ export function LogList() {
   // 构建表头文本
   const headerText = useMemo(() => {
     const parts: string[] = [];
-    const timestampWidth = settings.timestampFormat === "datetime" ? COL_CHARS.datetime : COL_CHARS.timestamp;
-    const pidWidth = settings.showTid ? COL_CHARS.pidTid : COL_CHARS.pid;
+    const timestampWidth = settings.timestampFormat === "datetime" ? FIXED_COL_CHARS.datetime : FIXED_COL_CHARS.timestamp;
+    const pidWidth = settings.showTid ? FIXED_COL_CHARS.pidTid : FIXED_COL_CHARS.pid;
 
     if (settings.showTimestamp) {
       const label = settings.timestampFormat === "datetime" ? "DATE/TIME" :
@@ -652,13 +674,13 @@ export function LogList() {
       parts.push(padStart(settings.showTid ? "PID-TID" : "PID", pidWidth));
     }
     if (settings.showTag) {
-      parts.push(padEnd("TAG", COL_CHARS.tag));
+      parts.push(padEnd("TAG", settings.tagColumnWidth));
     }
     if (settings.showPackageName) {
-      parts.push(padEnd("PACKAGE", COL_CHARS.packageName));
+      parts.push(padEnd("PACKAGE", settings.packageColumnWidth));
     }
     if (settings.showProcessName) {
-      parts.push(padEnd("PROCESS", COL_CHARS.processName));
+      parts.push(padEnd("PROCESS", settings.processColumnWidth));
     }
     if (settings.showLevel) {
       parts.push("L");
@@ -667,7 +689,8 @@ export function LogList() {
 
     return parts.join('  ');
   }, [settings.showTimestamp, settings.timestampFormat, settings.showPid, settings.showTid,
-      settings.showTag, settings.showPackageName, settings.showProcessName, settings.showLevel]);
+      settings.showTag, settings.showPackageName, settings.showProcessName, settings.showLevel,
+      settings.tagColumnWidth, settings.packageColumnWidth, settings.processColumnWidth]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
