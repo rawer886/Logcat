@@ -198,7 +198,7 @@ export const DEFAULT_FILTER: FilterConfig = {
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
   fontSize: 12,
-  lineHeight: 2.0,
+  lineHeight: 1.5,
   maxLogLines: 100000,
   autoScroll: true,
   // Timestamp

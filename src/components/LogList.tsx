@@ -1,8 +1,16 @@
-import React, { useRef, useEffect, useCallback, memo, useState, useMemo } from "react";
+import React, { useRef, useEffect, memo, useState, useMemo, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import { LOG_LEVEL_INFO, type LogEntry, type LogLevel, type TimestampFormat } from "../types";
+
+// 显示行类型：主行或续行
+interface DisplayRow {
+  type: "main" | "continuation";
+  entry: LogEntry;
+  prevEntry: LogEntry | null;
+  messageSlice: string; // 当前行显示的消息片段
+}
 
 // Column width state
 interface ColumnWidths {
@@ -147,53 +155,47 @@ const formatTimestamp = (entry: LogEntry, format: TimestampFormat): string => {
 // 自定义比较函数，优化 LogRow 的渲染判断
 function arePropsEqual(
   prevProps: {
-    entry: LogEntry;
-    prevEntry: LogEntry | null;
+    displayRow: DisplayRow;
     settings: any;
     columnWidths: ColumnWidths;
+    metaWidth: number;
   },
   nextProps: {
-    entry: LogEntry;
-    prevEntry: LogEntry | null;
+    displayRow: DisplayRow;
     settings: any;
     columnWidths: ColumnWidths;
+    metaWidth: number;
   }
 ): boolean {
-  // Entry 的 ID 相同且其他属性相同
-  if (prevProps.entry.id !== nextProps.entry.id) {
-    return false;
-  }
-
-  // 前一个 entry 的变化（用于判断重复显示）
-  if (prevProps.prevEntry?.id !== nextProps.prevEntry?.id) {
-    return false;
-  }
+  // DisplayRow 比较
+  if (prevProps.displayRow.type !== nextProps.displayRow.type) return false;
+  if (prevProps.displayRow.entry.id !== nextProps.displayRow.entry.id) return false;
+  if (prevProps.displayRow.messageSlice !== nextProps.displayRow.messageSlice) return false;
+  if (prevProps.displayRow.prevEntry?.id !== nextProps.displayRow.prevEntry?.id) return false;
 
   // Settings 对象引用变化（已被 useMemo 优化，只需比较引用）
-  if (prevProps.settings !== nextProps.settings) {
-    return false;
-  }
+  if (prevProps.settings !== nextProps.settings) return false;
 
-  // ColumnWidths 浅比较（只比较实际使用的列）
+  // metaWidth
+  if (prevProps.metaWidth !== nextProps.metaWidth) return false;
+
+  // ColumnWidths 浅比较
   const cols: (keyof ColumnWidths)[] = ['timestamp', 'pid', 'packageName', 'processName', 'level', 'tag'];
   for (const col of cols) {
-    if (prevProps.columnWidths[col] !== nextProps.columnWidths[col]) {
-      return false;
-    }
+    if (prevProps.columnWidths[col] !== nextProps.columnWidths[col]) return false;
   }
 
   return true;
 }
 
-// Memoized log row component
+// Memoized log row component - 支持主行和续行
 const LogRow = memo(function LogRow({
-  entry,
-  prevEntry,
+  displayRow,
   settings,
   columnWidths,
+  metaWidth,
 }: {
-  entry: LogEntry;
-  prevEntry: LogEntry | null;
+  displayRow: DisplayRow;
   settings: {
     showTimestamp: boolean;
     timestampFormat: TimestampFormat;
@@ -211,7 +213,10 @@ const LogRow = memo(function LogRow({
     wrapLines: boolean;
   };
   columnWidths: ColumnWidths;
+  metaWidth: number; // 元数据列的总宽度
 }) {
+  const { type, entry, prevEntry, messageSlice } = displayRow;
+
   // System marker special rendering
   if (entry.isSystemMarker) {
     return (
@@ -224,11 +229,11 @@ const LogRow = memo(function LogRow({
   }
 
   const levelInfo = LOG_LEVEL_INFO[entry.level];
-  
-  // Check if values are repeated
-  const isTagRepeated = settings.hideRepeatedTags && prevEntry && prevEntry.tag === entry.tag;
-  const isPackageNameRepeated = settings.hideRepeatedPackageName && prevEntry && prevEntry.packageName === entry.packageName;
-  const isProcessNameRepeated = settings.hideRepeatedProcessName && prevEntry && prevEntry.processName === entry.processName;
+
+  // Check if values are repeated (only for main rows)
+  const isTagRepeated = type === "main" && settings.hideRepeatedTags && prevEntry && prevEntry.tag === entry.tag;
+  const isPackageNameRepeated = type === "main" && settings.hideRepeatedPackageName && prevEntry && prevEntry.packageName === entry.packageName;
+  const isProcessNameRepeated = type === "main" && settings.hideRepeatedProcessName && prevEntry && prevEntry.processName === entry.processName;
 
   const getRowClassName = (level: LogLevel) => {
     switch (level) {
@@ -251,22 +256,42 @@ const LogRow = memo(function LogRow({
     return entry.pid.toString();
   };
 
+  // 续行：只显示消息，前面用空白占位
+  if (type === "continuation") {
+    return (
+      <div
+        style={{ fontSize: `${settings.fontSize}px` }}
+        className={cn(
+          "flex font-mono hover:bg-surface-elevated/50 transition-colors items-center",
+          getRowClassName(entry.level)
+        )}
+      >
+        {/* 空白占位，宽度等于所有元数据列的总宽度 */}
+        <div className="flex-shrink-0" style={{ width: metaWidth }} />
+        {/* 续行消息 */}
+        <div
+          style={{ lineHeight: `${settings.lineHeight}` }}
+          className="flex-1 min-w-[200px] px-2 text-text-primary whitespace-pre overflow-hidden"
+        >
+          {messageSlice}
+        </div>
+      </div>
+    );
+  }
+
+  // 主行：显示所有列
   return (
     <div
-      style={{
-        fontSize: `${settings.fontSize}px`,
-        lineHeight: `${settings.lineHeight}`,
-      }}
+      style={{ fontSize: `${settings.fontSize}px` }}
       className={cn(
-        "flex font-mono hover:bg-surface-elevated/50 transition-colors",
-        settings.wrapLines ? "items-start" : "items-center",
+        "flex font-mono hover:bg-surface-elevated/50 transition-colors items-center",
         getRowClassName(entry.level)
       )}
     >
       {/* Timestamp */}
       {settings.showTimestamp && (
         <div
-          className="flex-shrink-0 px-2 text-text-muted whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 text-text-muted overflow-hidden whitespace-nowrap"
           style={{ width: columnWidths.timestamp }}
         >
           {formatTimestamp(entry, settings.timestampFormat)}
@@ -276,7 +301,7 @@ const LogRow = memo(function LogRow({
       {/* PID (with optional TID) */}
       {settings.showPid && (
         <div
-          className="flex-shrink-0 px-2 text-text-muted text-right whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 text-text-muted text-right overflow-hidden whitespace-nowrap"
           style={{ width: columnWidths.pid }}
         >
           {formatPidTid()}
@@ -286,7 +311,7 @@ const LogRow = memo(function LogRow({
       {/* Package Name */}
       {settings.showPackageName && (
         <div
-          className="flex-shrink-0 px-2 text-text-secondary whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 text-text-secondary overflow-hidden whitespace-nowrap"
           style={{ width: columnWidths.packageName }}
           title={entry.packageName}
         >
@@ -297,7 +322,7 @@ const LogRow = memo(function LogRow({
       {/* Process Name */}
       {settings.showProcessName && (
         <div
-          className="flex-shrink-0 px-2 text-text-muted whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 text-text-muted overflow-hidden whitespace-nowrap"
           style={{ width: columnWidths.processName }}
           title={entry.processName}
         >
@@ -308,7 +333,7 @@ const LogRow = memo(function LogRow({
       {/* Level */}
       {settings.showLevel && (
         <div
-          className="flex-shrink-0 px-2 text-center font-bold whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 text-center font-bold overflow-hidden whitespace-nowrap"
           style={{ color: levelInfo.color, width: columnWidths.level }}
         >
           {entry.level}
@@ -318,10 +343,10 @@ const LogRow = memo(function LogRow({
       {/* Tag */}
       {settings.showTag && (
         <div
-          className="flex-shrink-0 px-2 whitespace-nowrap overflow-hidden"
+          className="flex-shrink-0 px-2 overflow-hidden whitespace-nowrap"
           style={{
             color: isTagRepeated ? "transparent" : levelInfo.color,
-            width: columnWidths.tag
+            width: columnWidths.tag,
           }}
           title={entry.tag}
         >
@@ -331,26 +356,23 @@ const LogRow = memo(function LogRow({
 
       {/* Message */}
       <div
-        className={cn(
-          "flex-1 min-w-[200px] px-2 text-text-primary",
-          settings.wrapLines
-            ? "whitespace-pre-wrap break-all"
-            : "whitespace-pre"
-        )}
+        style={{ lineHeight: `${settings.lineHeight}` }}
+        className="flex-1 min-w-[200px] px-2 text-text-primary whitespace-pre overflow-hidden"
       >
-        {entry.message}
+        {messageSlice}
       </div>
     </div>
   );
 }, arePropsEqual);
 
 export function LogList() {
-  const { filteredLogs, autoScroll, settings, filter, setAutoScroll } = useLogStore();
+  const { filteredLogs, autoScroll, settings, setAutoScroll } = useLogStore();
   const parentRef = useRef<HTMLDivElement>(null);
   const prevLogCountRef = useRef(0);
   const prevAutoScrollRef = useRef(autoScroll);
   const lastScrollTopRef = useRef(0); // Track last scroll position to detect scroll direction
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
+  const [containerWidth, setContainerWidth] = useState(1200); // 默认宽度
 
   const handleColumnResize = (column: keyof ColumnWidths, delta: number) => {
     setColumnWidths((prev) => ({
@@ -359,25 +381,150 @@ export function LogList() {
     }));
   };
 
-  // Virtual list configuration with dynamic height support
+  // 监听容器宽度变化
+  useEffect(() => {
+    const element = parentRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      setContainerWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // 计算元数据列的总宽度
+  const metaWidth = useMemo(() => {
+    let width = 0;
+    if (settings.showTimestamp) width += columnWidths.timestamp;
+    if (settings.showPid) width += columnWidths.pid;
+    if (settings.showPackageName) width += columnWidths.packageName;
+    if (settings.showProcessName) width += columnWidths.processName;
+    if (settings.showLevel) width += columnWidths.level;
+    if (settings.showTag) width += columnWidths.tag;
+    return width;
+  }, [
+    columnWidths,
+    settings.showTimestamp,
+    settings.showPid,
+    settings.showPackageName,
+    settings.showProcessName,
+    settings.showLevel,
+    settings.showTag,
+  ]);
+
+  // 计算消息列可用宽度
+  const messageWidth = useMemo(() => {
+    // 容器宽度 - 元数据宽度 - 滚动条宽度 - padding
+    return Math.max(200, containerWidth - metaWidth - 20 - 16);
+  }, [containerWidth, metaWidth]);
+
+  // 估算每行可显示的字符数（基于等宽字体）
+  const charsPerLine = useMemo(() => {
+    // 等宽字体：字符宽度约为 fontSize * 0.6
+    const charWidth = settings.fontSize * 0.6;
+    return Math.floor(messageWidth / charWidth);
+  }, [messageWidth, settings.fontSize]);
+
+  // 将消息分割成多行
+  const splitMessage = useCallback((message: string, maxChars: number): string[] => {
+    if (message.length <= maxChars) {
+      return [message];
+    }
+
+    const lines: string[] = [];
+    let remaining = message;
+
+    while (remaining.length > 0) {
+      if (remaining.length <= maxChars) {
+        lines.push(remaining);
+        break;
+      }
+
+      // 在 maxChars 附近找合适的断点（空格、标点）
+      let breakPoint = maxChars;
+
+      // 尝试在单词边界断开
+      const lastSpace = remaining.lastIndexOf(' ', maxChars);
+      if (lastSpace > maxChars * 0.7) {
+        breakPoint = lastSpace + 1;
+      }
+
+      lines.push(remaining.substring(0, breakPoint));
+      remaining = remaining.substring(breakPoint);
+    }
+
+    return lines;
+  }, []);
+
+  // 生成显示行数组
+  const displayRows = useMemo((): DisplayRow[] => {
+    if (!settings.wrapLines) {
+      // 非换行模式：每个日志条目一行
+      return filteredLogs.map((entry, index) => ({
+        type: "main" as const,
+        entry,
+        prevEntry: index > 0 ? filteredLogs[index - 1] : null,
+        messageSlice: entry.message,
+      }));
+    }
+
+    // 换行模式：将长消息拆分成多行
+    const rows: DisplayRow[] = [];
+
+    filteredLogs.forEach((entry, index) => {
+      const prevEntry = index > 0 ? filteredLogs[index - 1] : null;
+
+      // System marker 不拆分
+      if (entry.isSystemMarker) {
+        rows.push({
+          type: "main",
+          entry,
+          prevEntry,
+          messageSlice: entry.message,
+        });
+        return;
+      }
+
+      const messageLines = splitMessage(entry.message, charsPerLine);
+
+      messageLines.forEach((line, lineIndex) => {
+        rows.push({
+          type: lineIndex === 0 ? "main" : "continuation",
+          entry,
+          prevEntry: lineIndex === 0 ? prevEntry : null,
+          messageSlice: line,
+        });
+      });
+    });
+
+    return rows;
+  }, [filteredLogs, settings.wrapLines, charsPerLine, splitMessage]);
+
+  // 计算固定行高 - 紧凑布局，只保留最小必要的 padding
+  const fixedRowHeight = Math.max(22, Math.ceil(settings.fontSize * settings.lineHeight) + 4);
+
+  // Virtual list configuration - 现在始终使用固定高度
   const virtualizer = useVirtualizer({
-    count: filteredLogs.length,
+    count: displayRows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => settings.wrapLines ? 60 : 28,
-    overscan: 20,
-    measureElement: (element) => {
-      return element?.getBoundingClientRect().height ?? (settings.wrapLines ? 60 : 28);
-    },
+    estimateSize: () => fixedRowHeight,
+    overscan: 30,
   });
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
     if (
       autoScroll &&
-      filteredLogs.length > prevLogCountRef.current &&
+      displayRows.length > prevLogCountRef.current &&
       parentRef.current
     ) {
-      virtualizer.scrollToIndex(filteredLogs.length - 1, {
+      virtualizer.scrollToIndex(displayRows.length - 1, {
         align: "end",
         behavior: "auto",
       });
@@ -388,16 +535,16 @@ export function LogList() {
         }
       });
     }
-    prevLogCountRef.current = filteredLogs.length;
-  }, [filteredLogs.length, autoScroll, virtualizer]);
+    prevLogCountRef.current = displayRows.length;
+  }, [displayRows.length, autoScroll, virtualizer]);
 
   useEffect(() => {
     if (
       autoScroll &&
       !prevAutoScrollRef.current &&
-      filteredLogs.length > 0
+      displayRows.length > 0
     ) {
-      virtualizer.scrollToIndex(filteredLogs.length - 1, {
+      virtualizer.scrollToIndex(displayRows.length - 1, {
         align: "end",
         behavior: "auto",
       });
@@ -409,7 +556,7 @@ export function LogList() {
       });
     }
     prevAutoScrollRef.current = autoScroll;
-  }, [autoScroll, filteredLogs.length, virtualizer]);
+  }, [autoScroll, displayRows.length, virtualizer]);
 
   // Handle scroll events from LeftToolbar
   useEffect(() => {
@@ -421,8 +568,8 @@ export function LogList() {
     };
 
     const handleScrollToBottom = () => {
-      if (filteredLogs.length > 0) {
-        virtualizer.scrollToIndex(filteredLogs.length - 1, {
+      if (displayRows.length > 0) {
+        virtualizer.scrollToIndex(displayRows.length - 1, {
           align: "end",
           behavior: "auto"
         });
@@ -443,7 +590,7 @@ export function LogList() {
       window.removeEventListener("logcat:scrollToTop", handleScrollToTop);
       window.removeEventListener("logcat:scrollToBottom", handleScrollToBottom);
     };
-  }, [virtualizer, filteredLogs.length, setAutoScroll]);
+  }, [virtualizer, displayRows.length, setAutoScroll]);
 
   // Monitor scroll to disable auto-scroll when user scrolls up
   useEffect(() => {
@@ -544,49 +691,6 @@ export function LogList() {
     ]
   );
 
-  // 使用 useRef 跟踪列宽，避免频繁重测量
-  const columnWidthsRef = useRef(columnWidths);
-  const measureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    columnWidthsRef.current = columnWidths;
-  }, [columnWidths]);
-
-  useEffect(() => {
-    // 立即测量字体和换行相关的变化
-    virtualizer.measure();
-  }, [
-    virtualizer,
-    settings.wrapLines,
-    settings.fontSize,
-    settings.lineHeight,
-  ]);
-
-  // 延迟测量列宽变化，避免拖动时频繁重测量
-  useEffect(() => {
-    if (measureTimeoutRef.current) {
-      clearTimeout(measureTimeoutRef.current);
-    }
-
-    measureTimeoutRef.current = setTimeout(() => {
-      virtualizer.measure();
-    }, 100); // 100ms 防抖延迟
-
-    return () => {
-      if (measureTimeoutRef.current) {
-        clearTimeout(measureTimeoutRef.current);
-      }
-    };
-  }, [
-    virtualizer,
-    columnWidths.timestamp,
-    columnWidths.pid,
-    columnWidths.packageName,
-    columnWidths.processName,
-    columnWidths.level,
-    columnWidths.tag,
-  ]);
-
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
       {/* Scrollable container for both header and content */}
@@ -664,7 +768,7 @@ export function LogList() {
           </div>
 
           {/* Virtual List Content */}
-          {filteredLogs.length === 0 ? (
+          {displayRows.length === 0 ? (
             <div className="flex items-center justify-center h-[400px] text-text-muted">
               <div className="text-center">
                 <div className="text-4xl mb-4">📋</div>
@@ -680,26 +784,25 @@ export function LogList() {
               }}
             >
               {virtualizer.getVirtualItems().map((virtualRow) => {
-                const entry = filteredLogs[virtualRow.index];
-                const prevEntry = virtualRow.index > 0 ? filteredLogs[virtualRow.index - 1] : null;
+                const displayRow = displayRows[virtualRow.index];
                 return (
                   <div
-                    key={entry.id}
+                    key={`${displayRow.entry.id}-${virtualRow.index}`}
                     data-index={virtualRow.index}
-                    ref={virtualizer.measureElement}
                     style={{
                       position: "absolute",
                       top: 0,
                       left: 0,
                       width: "100%",
+                      height: fixedRowHeight,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
                     <LogRow
-                      entry={entry}
-                      prevEntry={prevEntry}
+                      displayRow={displayRow}
                       settings={rowSettings}
                       columnWidths={columnWidths}
+                      metaWidth={metaWidth}
                     />
                   </div>
                 );
