@@ -219,13 +219,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wrapLines: false,
 };
 
-// Log level display info
+// Log level display info - uses CSS variables for theme support
 export const LOG_LEVEL_INFO: Record<LogLevel, { label: string; color: string; bgColor: string }> = {
-  V: { label: "Verbose", color: "#9E9E9E", bgColor: "transparent" },
-  D: { label: "Debug", color: "#2196F3", bgColor: "transparent" },
-  I: { label: "Info", color: "#4CAF50", bgColor: "transparent" },
-  W: { label: "Warn", color: "#FFC107", bgColor: "rgba(255, 193, 7, 0.1)" },
-  E: { label: "Error", color: "#F44336", bgColor: "rgba(244, 67, 54, 0.1)" },
-  A: { label: "Assert", color: "#9C27B0", bgColor: "rgba(156, 39, 176, 0.1)" },
+  V: { label: "Verbose", color: "var(--log-verbose)", bgColor: "transparent" },
+  D: { label: "Debug", color: "var(--log-debug)", bgColor: "transparent" },
+  I: { label: "Info", color: "var(--log-info)", bgColor: "transparent" },
+  W: { label: "Warn", color: "var(--log-warn)", bgColor: "var(--log-warn-bg)" },
+  E: { label: "Error", color: "var(--log-error)", bgColor: "var(--log-error-bg)" },
+  A: { label: "Assert", color: "var(--log-assert)", bgColor: "var(--log-assert-bg)" },
 };
 

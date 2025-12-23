@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Type, AlignJustify, Monitor, Clock, Hash, Tag } from "lucide-react";
+import { X, Type, AlignJustify, Monitor, Clock, Hash, Tag, Sun, Moon, Laptop } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
 import type { TimestampFormat } from "../types";
@@ -37,6 +37,38 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
         {/* Content */}
         <div className="p-4 space-y-6 overflow-auto h-[calc(100%-56px)]">
+          {/* Theme Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Sun className="w-4 h-4" />
+              <span className="font-medium">主题</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "light", label: "浅色", icon: Sun },
+                { value: "dark", label: "深色", icon: Moon },
+                { value: "system", label: "跟随系统", icon: Laptop },
+              ].map((option) => {
+                const Icon = option.icon;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => updateSettings({ theme: option.value as "light" | "dark" | "system" })}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all",
+                      settings.theme === option.value
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border hover:border-border-strong hover:bg-surface-secondary text-text-secondary"
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-xs font-medium">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Font Size */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-text-primary">
@@ -312,6 +344,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             <button
               onClick={() => {
                 updateSettings({
+                  theme: "dark",
                   fontSize: 12,
                   lineHeight: 1.5,
                   showTimestamp: true,

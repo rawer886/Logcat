@@ -16,12 +16,26 @@ function App() {
   // Auto-select device on startup
   useAutoSelectDevice();
 
-  // Apply theme on mount
+  // Apply theme based on settings
   useEffect(() => {
-    if (settings.theme === "dark") {
-      document.documentElement.classList.add("dark");
+    const applyTheme = (isDark: boolean) => {
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    };
+
+    if (settings.theme === "system") {
+      // Follow system preference
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      applyTheme(mediaQuery.matches);
+
+      const handler = (e: MediaQueryListEvent) => applyTheme(e.matches);
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
     } else {
-      document.documentElement.classList.remove("dark");
+      applyTheme(settings.theme === "dark");
     }
   }, [settings.theme]);
 
