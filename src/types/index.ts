@@ -75,9 +75,13 @@ export interface FilterHistoryItem {
   isFavorite: boolean;
 }
 
+// Font family options
+export type FontFamily = "system" | "jetbrains-mono" | "fira-code" | "source-code-pro" | "consolas" | "menlo";
+
 // Application settings
 export interface AppSettings {
   theme: "light" | "dark" | "system";
+  fontFamily: FontFamily;
   fontSize: number;
   lineHeight: number;
   maxLogLines: number;
@@ -198,11 +202,22 @@ export const DEFAULT_FILTER: FilterConfig = {
   isCaseSensitive: false,
 };
 
+// Font family mapping
+export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
+  "system": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  "jetbrains-mono": "'JetBrains Mono', monospace",
+  "fira-code": "'Fira Code', monospace",
+  "source-code-pro": "'Source Code Pro', monospace",
+  "consolas": "Consolas, monospace",
+  "menlo": "Menlo, Monaco, monospace",
+};
+
 // Default application settings
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",
+  fontFamily: "system",
   fontSize: 12,
-  lineHeight: 1.5,
+  lineHeight: 1.2,
   maxLogLines: 100000,
   autoScroll: true,
   // Timestamp - 默认显示日期+时间

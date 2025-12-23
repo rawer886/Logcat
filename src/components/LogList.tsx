@@ -1,7 +1,7 @@
 import { useRef, useEffect, memo, useMemo, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLogStore } from "../stores/logStore";
-import { LOG_LEVEL_INFO, type LogEntry, type TimestampFormat } from "../types";
+import { LOG_LEVEL_INFO, FONT_FAMILY_MAP, type LogEntry, type TimestampFormat, type FontFamily } from "../types";
 
 // 显示行类型：主行或续行
 interface DisplayRow {
@@ -92,6 +92,7 @@ interface RowSettings {
   showLevel: boolean;
   showTag: boolean;
   showRepeatedTags: boolean;
+  fontFamily: FontFamily;
   fontSize: number;
   lineHeight: number;
   wrapLines: boolean;
@@ -176,8 +177,12 @@ const LogRow = memo(function LogRow({
     const metaWidth = getMetaCharWidth();
     return (
       <div
-        style={{ fontSize: `${settings.fontSize}px`, lineHeight: `${settings.lineHeight}` }}
-        className="h-full font-mono hover:bg-surface-elevated/50 transition-colors whitespace-pre"
+        style={{
+          fontSize: `${settings.fontSize}px`,
+          lineHeight: `${settings.lineHeight}`,
+          fontFamily: FONT_FAMILY_MAP[settings.fontFamily],
+        }}
+        className="h-full hover:bg-surface-elevated/50 transition-colors whitespace-pre"
       >
         <span className="text-transparent select-none">{' '.repeat(metaWidth)}</span>
         <span data-col="message" style={{ color: levelInfo.color }}>{messageSlice}</span>
@@ -191,8 +196,12 @@ const LogRow = memo(function LogRow({
 
   return (
     <div
-      style={{ fontSize: `${settings.fontSize}px`, lineHeight: `${settings.lineHeight}` }}
-      className="h-full font-mono hover:bg-surface-elevated/50 transition-colors whitespace-pre"
+      style={{
+        fontSize: `${settings.fontSize}px`,
+        lineHeight: `${settings.lineHeight}`,
+        fontFamily: FONT_FAMILY_MAP[settings.fontFamily],
+      }}
+      className="h-full hover:bg-surface-elevated/50 transition-colors whitespace-pre"
     >
       {/* Timestamp */}
       {settings.showTimestamp && (
@@ -487,6 +496,7 @@ export function LogList() {
       showLevel: settings.showLevel,
       showTag: settings.showTag,
       showRepeatedTags: settings.showRepeatedTags,
+      fontFamily: settings.fontFamily,
       fontSize: settings.fontSize,
       lineHeight: settings.lineHeight,
       wrapLines: settings.wrapLines,
@@ -506,6 +516,7 @@ export function LogList() {
       settings.showLevel,
       settings.showTag,
       settings.showRepeatedTags,
+      settings.fontFamily,
       settings.fontSize,
       settings.lineHeight,
       settings.wrapLines,
@@ -701,8 +712,10 @@ export function LogList() {
       >
         {/* Column Header - sticky */}
         <div
-          className="font-mono font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none px-2 py-2 text-text-secondary whitespace-pre"
-          style={{ fontSize: `${settings.fontSize}px` }}
+          className="font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none px-2 py-2 text-text-secondary whitespace-pre text-xs"
+          style={{
+            fontFamily: FONT_FAMILY_MAP[settings.fontFamily],
+          }}
         >
           {headerText}
         </div>

@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo } from "react";
 import {
   Smartphone,
-  Sun,
-  Moon,
   Settings,
   ChevronDown,
   X,
@@ -10,6 +8,7 @@ import {
   Star,
   Trash2,
   FileText,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLogStore } from "../stores/logStore";
@@ -47,9 +46,7 @@ const TIPS = [
 ];
 
 export function Toolbar() {
-  const { 
-    settings, 
-    toggleTheme,
+  const {
     filterHistory,
     addFilterHistory,
     toggleFilterFavorite,
@@ -579,22 +576,6 @@ export function Toolbar() {
         </button>
       </div>
 
-      {/* Theme Toggle */}
-      <button
-        onClick={toggleTheme}
-        className={cn(
-          "p-2 rounded-md hover:bg-surface-elevated transition-colors",
-          "text-text-secondary hover:text-text-primary"
-        )}
-        title={settings.theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
-      >
-        {settings.theme === "dark" ? (
-          <Sun className="w-4 h-4" />
-        ) : (
-          <Moon className="w-4 h-4" />
-        )}
-      </button>
-
       {/* Settings */}
       <button
         onClick={() => setIsSettingsOpen(true)}
@@ -605,6 +586,26 @@ export function Toolbar() {
         title="设置"
       >
         <Settings className="w-4 h-4" />
+      </button>
+
+      {/* Help */}
+      <button
+        onClick={async () => {
+          try {
+            const { open } = await import("@tauri-apps/plugin-shell");
+            await open("https://d.android.com/r/studio-ui/logcat/help?utm_source=android-studio-app&utm_medium=app");
+          } catch {
+            // Fallback for non-Tauri environment
+            window.open("https://d.android.com/r/studio-ui/logcat/help?utm_source=android-studio-app&utm_medium=app", "_blank");
+          }
+        }}
+        className={cn(
+          "p-2 rounded-md hover:bg-surface-elevated transition-colors",
+          "text-text-secondary hover:text-text-primary"
+        )}
+        title="帮助"
+      >
+        <HelpCircle className="w-4 h-4" />
       </button>
 
       {/* Settings Panel */}
