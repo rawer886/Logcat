@@ -152,15 +152,15 @@ const LogRow = memo(function LogRow({
   const getMetaCharWidth = () => {
     let width = 0;
     if (settings.showTimestamp) {
-      width += (settings.timestampFormat === "datetime" ? FIXED_COL_CHARS.datetime : FIXED_COL_CHARS.timestamp) + 2;
+      width += (settings.timestampFormat === "datetime" ? FIXED_COL_CHARS.datetime : FIXED_COL_CHARS.timestamp) + 1;
     }
     if (settings.showPid) {
-      width += (settings.showTid ? FIXED_COL_CHARS.pidTid : FIXED_COL_CHARS.pid) + 2;
+      width += (settings.showTid ? FIXED_COL_CHARS.pidTid : FIXED_COL_CHARS.pid) + 1;
     }
-    if (settings.showTag) width += settings.tagColumnWidth + 2;
-    if (settings.showPackageName) width += settings.packageColumnWidth + 2;
-    if (settings.showProcessName) width += settings.processColumnWidth + 2;
-    if (settings.showLevel) width += FIXED_COL_CHARS.level + 2;
+    if (settings.showTag) width += settings.tagColumnWidth + 1;
+    if (settings.showPackageName) width += settings.packageColumnWidth + 1;
+    if (settings.showProcessName) width += settings.processColumnWidth + 1;
+    if (settings.showLevel) width += FIXED_COL_CHARS.level + 1;
     return width;
   };
 
@@ -182,7 +182,7 @@ const LogRow = memo(function LogRow({
           lineHeight: `${settings.lineHeight}`,
           fontFamily: FONT_FAMILY_MAP[settings.fontFamily],
         }}
-        className="h-full hover:bg-surface-elevated/50 transition-colors whitespace-pre"
+        className="h-full whitespace-pre"
       >
         <span className="text-transparent select-none">{' '.repeat(metaWidth)}</span>
         <span data-col="message" style={{ color: levelInfo.color }}>{messageSlice}</span>
@@ -201,7 +201,7 @@ const LogRow = memo(function LogRow({
         lineHeight: `${settings.lineHeight}`,
         fontFamily: FONT_FAMILY_MAP[settings.fontFamily],
       }}
-      className="h-full hover:bg-surface-elevated/50 transition-colors whitespace-pre"
+      className="h-full whitespace-pre"
     >
       {/* Timestamp */}
       {settings.showTimestamp && (
@@ -209,7 +209,7 @@ const LogRow = memo(function LogRow({
           <span data-col="timestamp" className="text-text-muted">
             {padEnd(formatTimestamp(entry, settings.timestampFormat), timestampWidth)}
           </span>
-          <span className="text-text-muted">  </span>
+          <span className="text-text-muted"> </span>
         </>
       )}
 
@@ -219,7 +219,7 @@ const LogRow = memo(function LogRow({
           <span data-col="pid" className="text-text-muted">
             {padStart(formatPidTid(), pidWidth)}
           </span>
-          <span className="text-text-muted">  </span>
+          <span className="text-text-muted"> </span>
         </>
       )}
 
@@ -233,7 +233,7 @@ const LogRow = memo(function LogRow({
           >
             {padEnd(isTagRepeated ? '' : truncateMiddle(entry.tag, settings.tagColumnWidth), settings.tagColumnWidth)}
           </span>
-          <span className="text-text-muted">  </span>
+          <span className="text-text-muted"> </span>
         </>
       )}
 
@@ -243,7 +243,7 @@ const LogRow = memo(function LogRow({
           <span data-col="package" className="text-text-secondary" title={entry.packageName}>
             {padEnd(isPackageNameRepeated ? '' : truncateMiddle(entry.packageName || '-', settings.packageColumnWidth), settings.packageColumnWidth)}
           </span>
-          <span className="text-text-muted">  </span>
+          <span className="text-text-muted"> </span>
         </>
       )}
 
@@ -253,7 +253,7 @@ const LogRow = memo(function LogRow({
           <span data-col="process" className="text-text-muted" title={entry.processName}>
             {padEnd(isProcessNameRepeated ? '' : truncateMiddle(entry.processName || '-', settings.processColumnWidth), settings.processColumnWidth)}
           </span>
-          <span className="text-text-muted">  </span>
+          <span className="text-text-muted"> </span>
         </>
       )}
 
@@ -262,12 +262,12 @@ const LogRow = memo(function LogRow({
         <>
           <span
             data-col="level"
-            className="font-bold"
+            className="font-bold px-1 -my-[0.6em] py-[0.6em]"
             style={{ color: levelInfo.color, backgroundColor: levelInfo.bgColor }}
           >
             {entry.level}
           </span>
-          <span className="text-text-muted">  </span>
+          <span className="text-text-muted"> </span>
         </>
       )}
 
@@ -526,182 +526,38 @@ export function LogList() {
     ]
   );
 
-  // Handle copy event to format selected logs with aligned columns
-  useEffect(() => {
-    const element = parentRef.current;
-    if (!element) return;
-
-    const handleCopy = (e: ClipboardEvent) => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) return;
-
-      const range = selection.getRangeAt(0);
-      const rowElements = element.querySelectorAll('[data-index]');
-
-      const selectedIndices: number[] = [];
-      rowElements.forEach((el) => {
-        if (range.intersectsNode(el)) {
-          const index = parseInt(el.getAttribute('data-index') || '-1', 10);
-          if (index >= 0 && !selectedIndices.includes(index)) {
-            selectedIndices.push(index);
-          }
-        }
-      });
-
-      if (selectedIndices.length === 0) return;
-
-      selectedIndices.sort((a, b) => a - b);
-
-      // First pass: collect data and calculate max widths
-      const maxWidths = { timestamp: 0, pid: 0, tag: 0, packageName: 0, processName: 0, level: 0 };
-
-      const rowsData = selectedIndices.map((index) => {
-        const row = displayRows[index];
-        if (!row) return null;
-
-        const entry = row.entry;
-        const data = {
-          timestamp: rowSettings.showTimestamp ? formatTimestamp(entry, rowSettings.timestampFormat) : '',
-          pid: rowSettings.showPid ? (rowSettings.showTid ? `${entry.pid}-${entry.tid}` : entry.pid.toString()) : '',
-          tag: rowSettings.showTag ? entry.tag : '',
-          packageName: rowSettings.showPackageName ? (entry.packageName || '-') : '',
-          processName: rowSettings.showProcessName ? (entry.processName || '-') : '',
-          level: rowSettings.showLevel ? entry.level : '',
-          message: row.messageSlice,
-        };
-
-        if (data.timestamp) maxWidths.timestamp = Math.max(maxWidths.timestamp, data.timestamp.length);
-        if (data.pid) maxWidths.pid = Math.max(maxWidths.pid, data.pid.length);
-        if (data.tag) maxWidths.tag = Math.max(maxWidths.tag, data.tag.length);
-        if (data.packageName) maxWidths.packageName = Math.max(maxWidths.packageName, data.packageName.length);
-        if (data.processName) maxWidths.processName = Math.max(maxWidths.processName, data.processName.length);
-        if (data.level) maxWidths.level = Math.max(maxWidths.level, data.level.length);
-
-        return data;
-      });
-
-      // Second pass: format each row with aligned columns
-      const formattedLines = rowsData
-        .filter((data): data is NonNullable<typeof data> => data !== null)
-        .map((data) => {
-          const parts: string[] = [];
-
-          if (data.timestamp) parts.push(data.timestamp.padEnd(maxWidths.timestamp));
-          if (data.pid) parts.push(data.pid.padStart(maxWidths.pid));
-          if (data.tag) parts.push(data.tag.padEnd(maxWidths.tag));
-          if (data.packageName) parts.push(data.packageName.padEnd(maxWidths.packageName));
-          if (data.processName) parts.push(data.processName.padEnd(maxWidths.processName));
-          if (data.level) parts.push(data.level.padEnd(maxWidths.level));
-          parts.push(data.message);
-
-          return parts.join('  ');
-        });
-
-      e.preventDefault();
-      e.clipboardData?.setData('text/plain', formattedLines.join('\n'));
-    };
-
-    element.addEventListener('copy', handleCopy);
-
-    return () => {
-      element.removeEventListener('copy', handleCopy);
-    };
-  }, [displayRows, rowSettings]);
-
-  // Handle text selection to show continuous row background
-  useEffect(() => {
-    const element = parentRef.current;
-    if (!element) return;
-
-    const selectedRowsRef = new Set<number>();
-    let rafId: number | null = null;
-
-    const handleSelectionChange = () => {
-      if (rafId !== null) return;
-
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-
-        const selection = window.getSelection();
-        if (!selection || selection.isCollapsed) {
-          selectedRowsRef.forEach((index) => {
-            const el = element.querySelector(`[data-index="${index}"]`);
-            if (el) el.classList.remove('row-selected');
-          });
-          selectedRowsRef.clear();
-          return;
-        }
-
-        const range = selection.getRangeAt(0);
-        const rowElements = element.querySelectorAll('[data-index]');
-
-        const newSelected = new Set<number>();
-        rowElements.forEach((el) => {
-          if (range.intersectsNode(el)) {
-            const index = parseInt(el.getAttribute('data-index') || '-1', 10);
-            if (index >= 0) {
-              newSelected.add(index);
-              el.classList.add('row-selected');
-            }
-          }
-        });
-
-        selectedRowsRef.forEach((index) => {
-          if (!newSelected.has(index)) {
-            const el = element.querySelector(`[data-index="${index}"]`);
-            if (el) el.classList.remove('row-selected');
-          }
-        });
-
-        selectedRowsRef.clear();
-        newSelected.forEach((i) => selectedRowsRef.add(i));
-      });
-    };
-
-    document.addEventListener('selectionchange', handleSelectionChange);
-
-    return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      selectedRowsRef.forEach((index) => {
-        const el = element.querySelector(`[data-index="${index}"]`);
-        if (el) el.classList.remove('row-selected');
-      });
-    };
-  }, []);
-
-  // 构建表头文本
-  const headerText = useMemo(() => {
-    const parts: string[] = [];
+  // 构建表头元素（带分割线）
+  const headerColumns = useMemo(() => {
+    const columns: { label: string; width: number; align: 'left' | 'right' }[] = [];
     const timestampWidth = settings.timestampFormat === "datetime" ? FIXED_COL_CHARS.datetime : FIXED_COL_CHARS.timestamp;
     const pidWidth = settings.showTid ? FIXED_COL_CHARS.pidTid : FIXED_COL_CHARS.pid;
 
     if (settings.showTimestamp) {
       const label = settings.timestampFormat === "datetime" ? "DATE/TIME" :
-                    settings.timestampFormat === "epoch" ? "TIMESTAMP" : "TIME";
-      parts.push(padEnd(label, timestampWidth));
+        settings.timestampFormat === "epoch" ? "TIMESTAMP" : "TIME";
+      columns.push({ label, width: timestampWidth, align: 'left' });
     }
     if (settings.showPid) {
-      parts.push(padStart(settings.showTid ? "PID-TID" : "PID", pidWidth));
+      columns.push({ label: settings.showTid ? "PID-TID" : "PID", width: pidWidth, align: 'right' });
     }
     if (settings.showTag) {
-      parts.push(padEnd("TAG", settings.tagColumnWidth));
+      columns.push({ label: "TAG", width: settings.tagColumnWidth, align: 'left' });
     }
     if (settings.showPackageName) {
-      parts.push(padEnd("PACKAGE", settings.packageColumnWidth));
+      columns.push({ label: "PACKAGE", width: settings.packageColumnWidth, align: 'left' });
     }
     if (settings.showProcessName) {
-      parts.push(padEnd("PROCESS", settings.processColumnWidth));
+      columns.push({ label: "PROCESS", width: settings.processColumnWidth, align: 'left' });
     }
     if (settings.showLevel) {
-      parts.push("L");
+      columns.push({ label: "L", width: 1, align: 'left' });
     }
-    parts.push("MESSAGE");
+    columns.push({ label: "MESSAGE", width: 0, align: 'left' });
 
-    return parts.join('  ');
+    return columns;
   }, [settings.showTimestamp, settings.timestampFormat, settings.showPid, settings.showTid,
-      settings.showTag, settings.showPackageName, settings.showProcessName, settings.showLevel,
-      settings.tagColumnWidth, settings.packageColumnWidth, settings.processColumnWidth]);
+  settings.showTag, settings.showPackageName, settings.showProcessName, settings.showLevel,
+  settings.tagColumnWidth, settings.packageColumnWidth, settings.processColumnWidth]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface transition-theme overflow-hidden">
@@ -712,12 +568,26 @@ export function LogList() {
       >
         {/* Column Header - sticky */}
         <div
-          className="font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none px-2 py-2 text-text-secondary whitespace-pre text-xs"
+          className="font-semibold bg-surface-secondary border-b border-border sticky top-0 z-10 select-none px-2 py-1 text-text-secondary text-xs flex items-center"
           style={{
             fontFamily: FONT_FAMILY_MAP[settings.fontFamily],
           }}
         >
-          {headerText}
+          {headerColumns.map((col, index) => {
+            const isLast = index === headerColumns.length - 1;
+            return (
+              <span
+                key={col.label}
+                className={`shrink-0 ${isLast ? 'text-left' : 'text-center'} ${!isLast ? 'border-r border-border pr-1 mr-1' : ''}`}
+                style={{
+                  width: col.width > 0 ? `${col.width}ch` : 'auto',
+                  flex: col.width === 0 ? 1 : 'none',
+                }}
+              >
+                {col.label}
+              </span>
+            );
+          })}
         </div>
 
         {/* Virtual List Content */}
@@ -742,7 +612,7 @@ export function LogList() {
                 <div
                   key={`${displayRow.entry.id}-${virtualRow.index}`}
                   data-index={virtualRow.index}
-                  className="px-2"
+                  className="px-2 overflow-hidden"
                   style={{
                     position: "absolute",
                     top: 0,

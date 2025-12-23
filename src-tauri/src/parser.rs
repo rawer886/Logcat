@@ -98,13 +98,15 @@ impl LogParser {
 
         // Try standard format first (with date: MM-DD HH:MM:SS.mmm)
         if let Some(caps) = LOGCAT_REGEX.captures(line) {
-            let timestamp_str = caps[1].to_string();
+            let timestamp_str = caps[1].to_string(); // "MM-DD HH:mm:ss.SSS"
             let now = chrono::Local::now();
+            // 添加年份: "MM-DD HH:mm:ss.SSS" -> "YYYY-MM-DD HH:mm:ss.SSS"
+            let date_time_with_year = format!("{}-{}", now.format("%Y"), timestamp_str);
             let entry = LogEntry {
                 id: self.next_id,
                 device_id: None,  // Will be set by commands.rs
                 timestamp: timestamp_str.split_whitespace().last().unwrap_or(&timestamp_str).to_string(),
-                date_time: Some(timestamp_str.clone()),
+                date_time: Some(date_time_with_year),
                 epoch: Some(now.timestamp_millis() as u64),
                 pid: caps[2].parse().unwrap_or(0),
                 tid: caps[3].parse().unwrap_or(0),
@@ -128,7 +130,7 @@ impl LogParser {
                 id: self.next_id,
                 device_id: None,
                 timestamp: timestamp_str.clone(),
-                date_time: Some(format!("{} {}", now.format("%m-%d"), timestamp_str)),
+                date_time: Some(format!("{}-{} {}", now.format("%Y"), now.format("%m-%d"), timestamp_str)),
                 epoch: Some(now.timestamp_millis() as u64),
                 pid: caps[2].parse().unwrap_or(0),
                 tid: caps[3].parse().unwrap_or(0),
@@ -152,7 +154,7 @@ impl LogParser {
                 id: self.next_id,
                 device_id: None,
                 timestamp: timestamp_str.clone(),
-                date_time: Some(format!("{} {}", now.format("%m-%d"), timestamp_str)),
+                date_time: Some(format!("{}-{} {}", now.format("%Y"), now.format("%m-%d"), timestamp_str)),
                 epoch: Some(now.timestamp_millis() as u64),
                 pid: caps[3].parse().unwrap_or(0),
                 tid: 0,
@@ -201,9 +203,10 @@ mod tests {
         let mut parser = LogParser::new();
         let line = "12-04 10:30:45.123  1234  5678 D MainActivity: onCreate called";
         let entry = parser.parse_line(line).unwrap();
-        
+
+        let year = chrono::Local::now().format("%Y").to_string();
         assert_eq!(entry.timestamp, "10:30:45.123");  // Only time part
-        assert_eq!(entry.date_time, Some("12-04 10:30:45.123".to_string()));
+        assert_eq!(entry.date_time, Some(format!("{}-12-04 10:30:45.123", year)));
         assert_eq!(entry.pid, 1234);
         assert_eq!(entry.tid, 5678);
         assert_eq!(entry.level, LogLevel::D);

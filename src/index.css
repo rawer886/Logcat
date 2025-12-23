@@ -142,10 +142,10 @@ body {
   color: white;
 }
 
-/* Log list selection - use custom background instead of browser default */
+/* Log list selection - use visible background for text selection */
 .log-list-container ::selection {
-  background-color: transparent;
-  color: inherit;
+  background-color: var(--accent);
+  color: white;
 }
 
 /* Row selection highlight - continuous background across rows */

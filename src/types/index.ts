@@ -215,8 +215,8 @@ export const FONT_FAMILY_MAP: Record<FontFamily, string> = {
 // Default application settings
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",
-  fontFamily: "system",
-  fontSize: 12,
+  fontFamily: "jetbrains-mono",
+  fontSize: 13,
   lineHeight: 1.2,
   maxLogLines: 100000,
   autoScroll: true,
