@@ -23,6 +23,8 @@ fn main() {
             commands::get_devices,
             commands::start_logcat,
             commands::stop_logcat,
+            commands::stop_all_logcat,
+            commands::get_monitoring_devices,
             commands::clear_logcat,
             commands::get_processes,
             commands::check_adb,

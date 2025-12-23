@@ -31,6 +31,8 @@ impl LogLevel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
     pub id: u64,
+    #[serde(rename = "deviceId", skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
     pub timestamp: String,
     #[serde(rename = "dateTime", skip_serializing_if = "Option::is_none")]
     pub date_time: Option<String>,
@@ -100,6 +102,7 @@ impl LogParser {
             let now = chrono::Local::now();
             let entry = LogEntry {
                 id: self.next_id,
+                device_id: None,  // Will be set by commands.rs
                 timestamp: timestamp_str.split_whitespace().last().unwrap_or(&timestamp_str).to_string(),
                 date_time: Some(timestamp_str.clone()),
                 epoch: Some(now.timestamp_millis() as u64),
@@ -123,6 +126,7 @@ impl LogParser {
             let timestamp_str = caps[1].to_string();
             let entry = LogEntry {
                 id: self.next_id,
+                device_id: None,
                 timestamp: timestamp_str.clone(),
                 date_time: Some(format!("{} {}", now.format("%m-%d"), timestamp_str)),
                 epoch: Some(now.timestamp_millis() as u64),
@@ -146,6 +150,7 @@ impl LogParser {
             let timestamp_str = now.format("%H:%M:%S%.3f").to_string();
             let entry = LogEntry {
                 id: self.next_id,
+                device_id: None,
                 timestamp: timestamp_str.clone(),
                 date_time: Some(format!("{} {}", now.format("%m-%d"), timestamp_str)),
                 epoch: Some(now.timestamp_millis() as u64),

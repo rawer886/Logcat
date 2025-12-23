@@ -47,8 +47,8 @@ export function LeftToolbar() {
     if (!file) return;
 
     try {
-      if (isConnected) {
-        await stopLogcat();
+      if (isConnected && selectedDevice) {
+        await stopLogcat(selectedDevice.id);
       }
 
       const content = await file.text();

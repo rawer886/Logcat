@@ -59,7 +59,7 @@ export function useDeviceMonitor() {
                 'disconnect'
               );
               // 停止日志流但不清空日志
-              await stopLogcat();
+              await stopLogcat(deviceId);
             }
           }
           break;

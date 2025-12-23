@@ -9,9 +9,11 @@ interface UseLogStreamReturn {
   isLoading: boolean;
   devices: Device[];
   selectedDevice: Device | null;
+  monitoringDevices: Set<string>;
   processes: ProcessInfo[];
   startLogcat: (deviceId: string) => Promise<void>;
-  stopLogcat: () => Promise<void>;
+  stopLogcat: (deviceId: string) => Promise<void>;
+  stopAllLogcat: () => Promise<void>;
   refreshDevices: () => Promise<void>;
   refreshProcesses: (deviceId: string) => Promise<void>;
   clearDeviceLogs: (deviceId: string) => Promise<void>;
@@ -21,16 +23,19 @@ export function useLogStream(): UseLogStreamReturn {
   const {
     devices,
     selectedDevice,
+    monitoringDevices,
     processes,
     isConnected,
     isLoading,
     setDevices,
-    selectDevice,
+    switchToDevice,
+    addMonitoringDevice,
+    removeMonitoringDevice,
     setProcesses,
-    addLogs,
+    addLogsForDevice,
     setConnected,
     setLoading,
-    clearLogs,
+    clearDeviceLogs: storeClearDeviceLogs,
   } = useLogStore();
 
   const unlistenRef = useRef<UnlistenFn | null>(null);
@@ -63,89 +68,121 @@ export function useLogStream(): UseLogStreamReturn {
     [setProcesses]
   );
 
+  // Set up global listener for log entries (only once)
+  useEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+
+    const setupListener = async () => {
+      unlisten = await listen<LogEntry[]>("logcat-entries", (event) => {
+        const entries = event.payload;
+        if (entries.length > 0) {
+          // 日志已经包含 deviceId (后端设置)
+          const deviceId = entries[0].deviceId;
+          if (deviceId) {
+            const state = useLogStore.getState();
+            state.addLogsForDevice(deviceId, entries);
+          }
+        }
+      });
+      unlistenRef.current = unlisten;
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
+
   // Start logcat for a device
   const startLogcat = useCallback(
     async (deviceId: string) => {
       try {
-        // Clean up existing listener
-        if (unlistenRef.current) {
-          unlistenRef.current();
-          unlistenRef.current = null;
-        }
-
-        // Set up listener for log entries - use addLogsForDevice with deviceId
-        unlistenRef.current = await listen<LogEntry[]>(
-          "logcat-entries",
-          (event) => {
-            const state = useLogStore.getState();
-            state.addLogsForDevice(deviceId, event.payload);
-          }
-        );
-
         // Start logcat on backend
         await invoke("start_logcat", { deviceId });
-        setConnected(true);
 
-        // Switch to device - use switchToDevice to load history
-        const state = useLogStore.getState();
-        state.switchToDevice(deviceId);
+        // Add to monitoring devices
+        addMonitoringDevice(deviceId);
+
+        // Switch to this device
+        switchToDevice(deviceId);
+
+        // Update connection status if this is the first device
+        if (monitoringDevices.size === 0) {
+          setConnected(true);
+        }
 
         // Refresh processes
         await refreshProcesses(deviceId);
       } catch (error) {
         console.error("Failed to start logcat:", error);
-        setConnected(false);
         throw error;
       }
     },
-    [setConnected, refreshProcesses]
+    [monitoringDevices, addMonitoringDevice, switchToDevice, setConnected, refreshProcesses]
   );
 
-  // Stop logcat
-  const stopLogcat = useCallback(async () => {
+  // Stop logcat for a specific device
+  const stopLogcat = useCallback(
+    async (deviceId: string) => {
+      try {
+        await invoke("stop_logcat", { deviceId });
+
+        // Remove from monitoring devices
+        removeMonitoringDevice(deviceId);
+
+        // Update connection status if no devices left
+        if (monitoringDevices.size <= 1) {
+          setConnected(false);
+        }
+      } catch (error) {
+        console.error("Failed to stop logcat:", error);
+      }
+    },
+    [monitoringDevices, removeMonitoringDevice, setConnected]
+  );
+
+  // Stop all logcat streams
+  const stopAllLogcat = useCallback(async () => {
     try {
-      await invoke("stop_logcat");
+      await invoke("stop_all_logcat");
       setConnected(false);
 
-      // Clean up listener
-      if (unlistenRef.current) {
-        unlistenRef.current();
-        unlistenRef.current = null;
-      }
+      // Clear monitoring devices
+      const state = useLogStore.getState();
+      state.monitoringDevices.forEach((deviceId) => {
+        removeMonitoringDevice(deviceId);
+      });
     } catch (error) {
-      console.error("Failed to stop logcat:", error);
+      console.error("Failed to stop all logcat:", error);
     }
-  }, [setConnected]);
+  }, [setConnected, removeMonitoringDevice]);
 
   // Clear device logs
   const clearDeviceLogs = useCallback(
     async (deviceId: string) => {
       try {
         await invoke("clear_logcat", { deviceId });
-        clearLogs();
+        storeClearDeviceLogs(deviceId);
       } catch (error) {
         console.error("Failed to clear logs:", error);
       }
     },
-    [clearLogs]
+    [storeClearDeviceLogs]
   );
-
-  useEffect(() => {
-    return () => {
-      if (unlistenRef.current) {
-        unlistenRef.current();
-      }
-    };
-  }, []);
 
   return {
     isConnected,
     isLoading,
     devices,
     selectedDevice,
+    monitoringDevices,
     processes,
     startLogcat,
     stopLogcat,
+    stopAllLogcat,
     refreshDevices,
     refreshProcesses,
     clearDeviceLogs,

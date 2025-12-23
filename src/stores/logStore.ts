@@ -27,6 +27,7 @@ interface LogState {
   // Devices
   devices: Device[];
   selectedDevice: Device | null;
+  monitoringDevices: Set<string>;  // 正在监听的设备 ID 集合
   lastSelectedDeviceId: string | null;  // 记录上次选中的设备
 
   // Imported file
@@ -64,8 +65,11 @@ interface LogState {
   // Actions - Devices
   setDevices: (devices: Device[]) => void;
   selectDevice: (device: Device | null) => void;
-  switchToDevice: (deviceId: string) => void;  // 新增：切换到设备
-  addDeviceMarker: (deviceId: string, message: string, type: 'disconnect' | 'reconnect') => void;  // 新增：添加设备标注
+  switchToDevice: (deviceId: string) => void;  // 切换查看的设备
+  addMonitoringDevice: (deviceId: string) => void;  // 添加到监听列表
+  removeMonitoringDevice: (deviceId: string) => void;  // 从监听列表移除
+  clearDeviceLogs: (deviceId: string) => void;  // 清除设备日志
+  addDeviceMarker: (deviceId: string, message: string, type: 'disconnect' | 'reconnect') => void;  // 添加设备标注
   
   // Actions - Processes
   setProcesses: (processes: ProcessInfo[]) => void;
@@ -158,6 +162,7 @@ export const useLogStore = create<LogState>()(
     filteredLogs: [],
     devices: [],
     selectedDevice: null,
+    monitoringDevices: new Set<string>(),  // 正在监听的设备
     lastSelectedDeviceId: null,  // 记录上次选中的设备
     importedFileName: null,
     processes: [],
@@ -313,7 +318,7 @@ export const useLogStore = create<LogState>()(
     
     // Actions - Devices
     setDevices: (devices) => set({ devices }),
-    
+
     selectDevice: (device) => {
       set({
         selectedDevice: device,
@@ -321,7 +326,7 @@ export const useLogStore = create<LogState>()(
       });
     },
 
-    // 新增：切换到设备
+    // 切换到设备（仅改变当前查看的设备）
     switchToDevice: (deviceId) => {
       const { deviceLogs, filter, devices } = get();
 
@@ -344,7 +349,53 @@ export const useLogStore = create<LogState>()(
       });
     },
 
-    // 新增：添加设备标注
+    // 添加到监听列表
+    addMonitoringDevice: (deviceId) => {
+      const { monitoringDevices } = get();
+      const newSet = new Set(monitoringDevices);
+      newSet.add(deviceId);
+      set({ monitoringDevices: newSet });
+    },
+
+    // 从监听列表移除
+    removeMonitoringDevice: (deviceId) => {
+      const { monitoringDevices, deviceLogs } = get();
+      const newSet = new Set(monitoringDevices);
+      newSet.delete(deviceId);
+
+      // 可选：同时清除该设备的日志
+      const newDeviceLogs = new Map(deviceLogs);
+      newDeviceLogs.delete(deviceId);
+
+      set({
+        monitoringDevices: newSet,
+        deviceLogs: newDeviceLogs,
+      });
+    },
+
+    // 清除设备日志
+    clearDeviceLogs: (deviceId) => {
+      const { deviceLogs, selectedDevice, filter } = get();
+      const newDeviceLogs = new Map(deviceLogs);
+      newDeviceLogs.delete(deviceId);
+
+      let updates: any = { deviceLogs: newDeviceLogs };
+
+      // 如果是当前选中设备，也清空 currentLogs
+      if (selectedDevice?.id === deviceId) {
+        updates.currentLogs = [];
+        updates.filteredLogs = [];
+        updates.stats = {
+          total: 0,
+          filtered: 0,
+          byLevel: { V: 0, D: 0, I: 0, W: 0, E: 0, A: 0 },
+        };
+      }
+
+      set(updates);
+    },
+
+    // 添加设备标注
     addDeviceMarker: (deviceId, message, type) => {
       const markerEntry: LogEntry = {
         id: Date.now(),

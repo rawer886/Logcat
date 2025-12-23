@@ -1,9 +1,10 @@
 use log::{error, info};
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tokio::process::Child;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, RwLock};
 
 use crate::adb::{AdbManager, Device, ProcessInfo};
 use crate::parser::LogEntry;
@@ -11,17 +12,22 @@ use crate::parser::LogEntry;
 /// Global ADB manager instance
 static ADB_MANAGER: Lazy<AdbManager> = Lazy::new(AdbManager::new);
 
-/// Logcat process state
+/// Single device's logcat process info
+struct DeviceLogcatProcess {
+    process: Child,
+    is_running: bool,
+}
+
+/// Logcat state supporting multiple devices
 pub struct LogcatState {
-    pub process: Arc<Mutex<Option<Child>>>,
-    pub is_running: Arc<Mutex<bool>>,
+    // Map of device_id -> process handle
+    devices: Arc<RwLock<HashMap<String, DeviceLogcatProcess>>>,
 }
 
 impl Default for LogcatState {
     fn default() -> Self {
         LogcatState {
-            process: Arc::new(Mutex::new(None)),
-            is_running: Arc::new(Mutex::new(false)),
+            devices: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
@@ -55,16 +61,13 @@ pub async fn start_logcat(
 ) -> Result<(), String> {
     info!("Starting logcat for device: {}", device_id);
 
-    // Check if already running
+    // Check if already running for this device
     {
-        let is_running = state.is_running.lock().await;
-        if *is_running {
-            return Err("Logcat is already running".to_string());
+        let devices = state.devices.read().await;
+        if devices.contains_key(&device_id) {
+            return Err(format!("Logcat already running for device: {}", device_id));
         }
     }
-
-    // Stop any existing process
-    stop_logcat_internal(&state).await?;
 
     // Create channel for log entries
     let (tx, mut rx) = mpsc::channel::<LogEntry>(1000);
@@ -76,29 +79,31 @@ pub async fn start_logcat(
 
     // Store process handle
     {
-        let mut process = state.process.lock().await;
-        *process = Some(child);
+        let mut devices = state.devices.write().await;
+        devices.insert(device_id.clone(), DeviceLogcatProcess {
+            process: child,
+            is_running: true,
+        });
     }
 
-    // Mark as running
-    {
-        let mut is_running = state.is_running.lock().await;
-        *is_running = true;
-    }
-
-    // Spawn task to forward logs to frontend
+    // Spawn task to forward logs to frontend with device_id
     let app_handle = app.clone();
-    let is_running = state.is_running.clone();
-    
+    let device_id_clone = device_id.clone();
+    let devices_ref = state.devices.clone();
+
     tokio::spawn(async move {
         let mut batch: Vec<LogEntry> = Vec::with_capacity(100);
         let mut last_emit = std::time::Instant::now();
-        
+
         loop {
             // Check if still running
             {
-                let running = is_running.lock().await;
-                if !*running {
+                let devices = devices_ref.read().await;
+                if let Some(device_process) = devices.get(&device_id_clone) {
+                    if !device_process.is_running {
+                        break;
+                    }
+                } else {
                     break;
                 }
             }
@@ -108,9 +113,11 @@ pub async fn start_logcat(
                 std::time::Duration::from_millis(50),
                 rx.recv()
             ).await {
-                Ok(Some(entry)) => {
+                Ok(Some(mut entry)) => {
+                    // Attach device_id to log entry
+                    entry.device_id = Some(device_id_clone.clone());
                     batch.push(entry);
-                    
+
                     // Emit batch if large enough or enough time passed
                     if batch.len() >= 50 || last_emit.elapsed().as_millis() > 100 {
                         if let Err(e) = app_handle.emit("logcat-entries", &batch) {
@@ -142,37 +149,47 @@ pub async fn start_logcat(
             let _ = app_handle.emit("logcat-entries", &batch);
         }
 
-        info!("Logcat forwarding task finished");
+        info!("Logcat forwarding task finished for device: {}", device_id_clone);
     });
 
     Ok(())
 }
 
-/// Stop logcat streaming
+/// Stop logcat streaming for a specific device
 #[tauri::command]
-pub async fn stop_logcat(state: State<'_, LogcatState>) -> Result<(), String> {
-    info!("Stopping logcat");
-    stop_logcat_internal(&state).await
-}
+pub async fn stop_logcat(device_id: String, state: State<'_, LogcatState>) -> Result<(), String> {
+    info!("Stopping logcat for device: {}", device_id);
 
-/// Internal function to stop logcat
-async fn stop_logcat_internal(state: &LogcatState) -> Result<(), String> {
-    // Mark as not running
-    {
-        let mut is_running = state.is_running.lock().await;
-        *is_running = false;
-    }
-
-    // Kill process if running
-    {
-        let mut process = state.process.lock().await;
-        if let Some(ref mut child) = *process {
-            let _ = child.kill().await;
-        }
-        *process = None;
+    let mut devices = state.devices.write().await;
+    if let Some(mut device_process) = devices.remove(&device_id) {
+        device_process.is_running = false;
+        let _ = device_process.process.kill().await;
+        info!("Stopped logcat for device: {}", device_id);
     }
 
     Ok(())
+}
+
+/// Stop all logcat streams
+#[tauri::command]
+pub async fn stop_all_logcat(state: State<'_, LogcatState>) -> Result<(), String> {
+    info!("Stopping all logcat streams");
+
+    let mut devices = state.devices.write().await;
+    for (device_id, mut device_process) in devices.drain() {
+        device_process.is_running = false;
+        let _ = device_process.process.kill().await;
+        info!("Stopped logcat for device: {}", device_id);
+    }
+
+    Ok(())
+}
+
+/// Get list of currently monitored devices
+#[tauri::command]
+pub async fn get_monitoring_devices(state: State<'_, LogcatState>) -> Result<Vec<String>, String> {
+    let devices = state.devices.read().await;
+    Ok(devices.keys().cloned().collect())
 }
 
 /// Clear logcat buffer on device

@@ -9,6 +9,8 @@ export function StatusBar() {
     stats,
     isPaused,
     isConnected,
+    selectedDevice,
+    monitoringDevices,
   } = useLogStore();
 
   // 缓存级别统计的渲染，避免每次 stats 更新都重新计算
@@ -33,7 +35,7 @@ export function StatusBar() {
     <div className="flex items-center justify-between px-4 py-1.5 bg-surface-secondary border-t border-border text-xs transition-theme">
       {/* Left: Stats */}
       <div className="flex items-center gap-4">
-        {/* Connection Status */}
+        {/* Connection Status with Device Info */}
         <div className="flex items-center gap-1.5">
           <Circle
             className={cn(
@@ -42,7 +44,19 @@ export function StatusBar() {
             )}
           />
           <span className="text-text-secondary">
-            {isConnected ? "已连接" : "未连接"}
+            {isConnected ? (
+              monitoringDevices.size > 1 ? (
+                <>
+                  查看: <span className="text-text-primary font-medium">{selectedDevice?.name || "无"}</span>
+                  {" | "}
+                  监听: <span className="text-text-primary font-medium">{monitoringDevices.size}</span> 台设备
+                </>
+              ) : (
+                selectedDevice?.name || "已连接"
+              )
+            ) : (
+              "未连接"
+            )}
           </span>
         </div>
 
